@@ -1,0 +1,27 @@
+node_modules/
+dist/
+
+# APKs and reverse-engineering artifacts
+*.apk
+isian apk alight motion/
+jadx-base/
+
+# Device logs and generated analysis dumps
+*.log
+*.txt
+*-log.txt
+*-network.txt
+*-summary.txt
+*-context.txt
+*-targets.txt
+*-package.txt
+fresh-*.txt
+import-*.txt
+log.txt
+phone-*.txt
+endpoint-candidates.txt
+
+# Local/editor files
+*.pptx
+.DS_Store
+Thumbs.db

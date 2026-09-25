@@ -1,0 +1,59 @@
+<?xml version='1.0' encoding='UTF-8' ?><!--
+Created by Alight Motion (http://alightmotion.com)
+Exported: 2025-05-29 06:31 PM
+5.0.270.1002578 (1002556)
+cb451d8 (Aug 26, 2024 3:15:14 PM)
+-->
+<scene title="新規プロジェクト" width="1920" height="1080" exportWidth="1920" exportHeight="1080" precompose="dynamicResolution" bgcolor="#ff000000" totalTime="19332" fps="30" modifiedTime="1748518294397" amver="1002556" ffver="106" am="com.alightcreative.motion/5.0.270.1002578" amplatform="android" retime="freeze" retimeAdaptFPS="false">
+  <bookmark t="5916" />
+  <bookmark t="9150" />
+  <bookmark t="10583" />
+  <bookmark t="11983" />
+  <bookmark t="13483" />
+  <bookmark t="15083" />
+  <bookmark t="7516" />
+  <audio id="121" label="alan_walker_feat_noah_cyrus_–_all_falls_down__slowed_and_reverb__tiktok_version_with_lyrics.(256k).mp3" startTime="0" endTime="19332" src="content://media/external/audio/media/1000104745" inTime="42867" outTime="62199" mediaFillMode="fill">
+    <gain>
+      <kf t="0.933633" v="1.000000" />
+      <kf t="0.999173" v="0.000000" />
+      <kf t="0.090472" v="1.000000" />
+      <kf t="0.018053" v="0.000000" />
+    </gain>
+  </audio>
+  <shape id="122" label="scene 1.mp4" startTime="5900" endTime="7532" fillType="media" fillVideo="content://media/external/video/media/1000108090" outTime="1632" mediaFillMode="fill" s=".rect">
+    <transform>
+      <location value="960.000000,540.000000,0.000000" />
+    </transform>
+    <property name="size" type="vec2" value="960.000000,540.000000" />
+  </shape>
+  <shape id="123" label="scene 1 shader.mp4" startTime="7500" endTime="9165" fillType="media" fillVideo="content://media/external/video/media/1000108091" inTime="1600" outTime="3265" mediaFillMode="fill" s=".rect">
+    <transform>
+      <location value="960.000000,540.000000,0.000000" />
+    </transform>
+    <property name="size" type="vec2" value="960.000000,540.000000" />
+  </shape>
+  <shape id="124" label="scene 2.mp4" startTime="9100" endTime="10599" fillType="media" fillVideo="content://media/external/video/media/1000108092" outTime="1499" mediaFillMode="fill" s=".rect">
+    <transform>
+      <location value="960.000000,540.000000,0.000000" />
+    </transform>
+    <property name="size" type="vec2" value="960.000000,540.000000" />
+  </shape>
+  <shape id="125" label="scene 2 shader.mp4" startTime="10566" endTime="11999" fillType="media" fillVideo="content://media/external/video/media/1000108094" inTime="1466" outTime="2899" mediaFillMode="fill" s=".rect">
+    <transform>
+      <location value="960.000000,540.000000,0.000000" />
+    </transform>
+    <property name="size" type="vec2" value="960.000000,540.000000" />
+  </shape>
+  <shape id="126" label="scene 3.mp4" startTime="11933" endTime="13499" fillType="media" fillVideo="content://media/external/video/media/1000108093" outTime="1566" mediaFillMode="fill" s=".rect">
+    <transform>
+      <location value="960.000000,540.000000,0.000000" />
+    </transform>
+    <property name="size" type="vec2" value="960.000000,540.000000" />
+  </shape>
+  <shape id="127" label="scene 3 shader.mp4" startTime="13466" endTime="15099" fillType="media" fillVideo="content://media/external/video/media/1000108095" inTime="1533" outTime="3166" mediaFillMode="fill" s=".rect">
+    <transform>
+      <location value="960.000000,540.000000,0.000000" />
+    </transform>
+    <property name="size" type="vec2" value="960.000000,540.000000" />
+  </shape>
+</scene>
