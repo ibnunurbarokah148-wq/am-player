@@ -25,3 +25,4 @@ endpoint-candidates.txt
 *.pptx
 .DS_Store
 Thumbs.db
+jadx-src/

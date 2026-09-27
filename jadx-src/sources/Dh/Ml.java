@@ -1,8 +1,0 @@
-package Dh;
-
-/* JADX INFO: loaded from: /content/repo2/apk-analysis/Alight motion /classes6.dex */
-public abstract class Ml {
-    public abstract Exception n();
-
-    public abstract String rl();
-}
