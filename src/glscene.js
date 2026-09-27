@@ -40,6 +40,18 @@
   var bgCache = null;
   var previousTransforms = {};
   var currentTransforms = {};
+  var precompCache = {};
+  var diagSent = {};
+  function diag(kind, data) {
+    var key = kind + '|' + JSON.stringify(data || {});
+    if (diagSent[key]) return;
+    diagSent[key] = 1;
+    try {
+      fetch('/api/diagnostics', { method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ title: scene && attr(scene.root, 'title', 'untitled'), kind: kind, data: data || {} })
+      }).catch(function () {});
+    } catch (e) {}
+  }
 
   var stats = {
     gl: false, layers: 0, fx: 0, native: 0, skipped: 0,
@@ -349,7 +361,12 @@
       x2.restore(); return;
     }
 
-    if (l.getAttribute('fillVideo') || l.getAttribute('fillImage')) {
+    if (l.tagName === 'embedScene') {
+      /* Nested scenes need their own render target and local clock. Do not
+       * paint the wrapper as a black rectangle while that recursive path is
+       * unavailable. */
+      x2.restore(); return;
+    } else if (l.getAttribute('fillVideo') || l.getAttribute('fillImage')) {
       if (m && m.ready) {
         drawMedia(x2, m.element, l.getAttribute('mediaFillMode'), x0, y0, size[0], size[1]);
       } else if (slot) {
@@ -462,7 +479,7 @@
 
   /** Native effect -> builtin shader uniforms. Returns null to pass through. */
   function nativeUniforms(file, v, timeSec, durSec) {
-    var u = { ox: 0, oy: 0, alpha: 1, rot: 0, noise: 0, evo: 0, seed: 0, angle: 0, slack: 1 };
+    var u = { ox: 0, oy: 0, oz: 0, alpha: 1, rot: 0, noise: 0, evo: 0, seed: 0, angle: 0, slack: 1 };
     switch (NATIVE[file]) {
       case 1: {                                   // fade: in/out ramp
         var tin = Math.abs(num(v.inTime, 0.5));
@@ -484,9 +501,16 @@
         var fr = Math.abs(num(v.freq, 2));
         var mag = num(v.mag, 25);
         var ph = num(v.phase, 0);
-        var w = wave(num(v.type, 0), fr * timeSec + ph);
+        var typ = num(v.type, 0), direction = num(v.direction, 0);
+        var x3 = fr * 2 + ph * 2;
+        var w = typ === 0 ? Math.sin(x3 * Math.PI) : wave(1, x3 / 2 + ph);
+        if (direction === 1) { u.oy = 0; u.oz = mag * w; break; }
         u.ox = Math.cos(ang) * mag * w;
         u.oy = -Math.sin(ang) * mag * w;
+        if (direction === 2) {
+          var x4 = typ === 0 ? Math.sin((fr * 2 + (ph + 0.25) * 2) * Math.PI) : wave(1, (fr * 2 + (ph + 0.125) * 2) / 2 + ph + 0.125);
+          u.oz = mag * x4;
+        }
         break;
       }
       case 4: {                                   // shake / shake2
@@ -505,7 +529,8 @@
         var fq2 = Math.abs(num(v.freq, 2));
         var a1 = num(v.a1, -30), a2 = num(v.a2, 30);
         var ph2 = num(v.phase, 0);
-        var w2 = wave(num(v.type, 0), fq2 * timeSec + ph2);
+        var typ2 = num(v.type, 0);
+        var w2 = typ2 === 0 ? Math.sin((fq2 + ph2) * Math.PI) : wave(1, (fq2 + ph2) / 2);
         u.rot = (a1 + (a2 - a1) * (w2 * 0.5 + 0.5)) * Math.PI / 180;
         break;
       }
@@ -580,8 +605,8 @@
   function applyEffect(el, input, ext, timeSec, durSec, tt, compTex, n, motion) {
     var id = attr(el, 'id');
     var meta = engine.effect(id);
-    if (!meta) { stats.missing++; trc(id, 'hilang', false, null); return {}; }
-    if (broken[id]) { stats.broken++; trc(id, 'rusak', false, null); return {}; }
+    if (!meta) { stats.missing++; diag('effect-missing', { id: id }); trc(id, 'hilang', false, null); return {}; }
+    if (broken[id]) { stats.broken++; diag('effect-broken', { id: id, error: broken[id] }); trc(id, 'rusak', false, null); return {}; }
 
     var vals = valuesOf(el, meta, tt);
     // APK disables Gaussian blur's shader group at zero strength.
@@ -597,36 +622,53 @@
       if (meta.type !== 'shader') {
         stats.native++;
         var u = nativeUniforms(meta.file, vals, timeSec, durSec);
-        if (!u) { stats.skipped++; trc(id, 'native-skip', false, vals); return {}; }
+        if (!u) { stats.skipped++; diag('native-unsupported', { id: id, file: meta.file, params: vals }); trc(id, 'native-skip', false, vals); return {}; }
         dst = chainT(n, ext.w, ext.h);
         runBuiltin(dst, input, ext.w, ext.h, u);
         trc(id, 'native', usesComp, vals);
         return { tex: dst.tex, n: n + 1, usesComp: usesComp };
       }
-      dst = chainT(n, ext.w, ext.h);
-      var res = engine.renderSync(meta, {
-        input: input, dst: dst, width: ext.w, height: ext.h,
-        time: timeSec, comp: compTex, images: images, values: vals,
-         globals: {
-          acTime: timeSec,
-          acLayerSize: [ext.w, ext.h],
-          acLayerCenter: [ext.w / 2, ext.h / 2],
-          acLayerCenterNorm: [0.5, 0.5],
-          acLayerSizeNorm: [ext.w / scene.w, ext.h / scene.h],
-          acProjectSize: [scene.w, scene.h],
-           acPreviewSize: [engine.canvas.width || scene.w, engine.canvas.height || scene.h]
-           ,acVelocity: motion ? motion.velocity : [0, 0]
-           ,acAngularVelocity: motion ? motion.angularVelocity : 0
-           ,acScaleVelocity: motion ? motion.scaleVelocity : 0
-         }
-      });
-      stats.fx++;
+      /* APK motionblur4 selects one or more shader groups at runtime. The old
+       * web path always used group 0, so positional blur (group 2) was absent
+       * for the common case where angular velocity is zero. */
+      var groups = [undefined];
+      if (meta.file === 'motionblur4') {
+        groups = [];
+        if (vals.useAngle !== false && motion && Math.abs(motion.angularVelocity) > 0.0001) groups.push(0);
+        if (vals.useScale !== false && motion && Math.abs(motion.scaleVelocity) > 0.0001) groups.push(1);
+        if (vals.usePos !== false && motion && Math.hypot(motion.velocity[0], motion.velocity[1]) > 0.0001) groups.push(2);
+        if (!groups.length) return {};
+      }
+      var cur = input, outN = n;
+      for (var gi = 0; gi < groups.length; gi++) {
+        dst = chainT(outN, ext.w, ext.h);
+        var res = engine.renderSync(meta, {
+          input: cur, dst: dst, width: ext.w, height: ext.h,
+          time: timeSec, group: groups[gi], comp: compTex, images: images, values: vals,
+          globals: {
+            acTime: timeSec,
+            acLayerSize: [ext.w, ext.h],
+            acLayerCenter: [ext.w / 2, ext.h / 2],
+            acLayerCenterNorm: [0.5, 0.5],
+            acLayerSizeNorm: [ext.w / scene.w, ext.h / scene.h],
+            acProjectSize: [scene.w, scene.h],
+            acPreviewSize: [engine.canvas.width || scene.w, scene.h],
+            acVelocity: motion ? motion.velocity : [0, 0],
+            acAngularVelocity: motion ? motion.angularVelocity : 0,
+            acScaleVelocity: motion ? motion.scaleVelocity : 0
+          }
+        });
+        cur = res.texture;
+        outN++;
+        stats.fx++;
+      }
       trc(id, 'ok', usesComp, vals);
-      return { tex: res.texture, n: n + 1, usesComp: usesComp };
+      return { tex: cur, n: outN, usesComp: usesComp };
     } catch (e) {
       var detail = '[' + id + '] ' + (e && e.message ? e.message : String(e));
       if (e && e.shaderTag) detail += ' (shader: ' + e.shaderTag + ')';
       if (!errSeen[id]) { errSeen[id] = 1; console.error('[glscene] effect gagal:', detail, e); }
+      diag('effect-error', { id: id, error: detail });
       broken[id] = detail;
 
       stats.skipped++;
@@ -688,10 +730,11 @@
     for (var i = 0; i < scene.layers.length; i++) {
       var l = scene.layers[i];
       if (l && l.getAttribute && l.getAttribute('hidden') === 'true') continue;
-      var a = num(attr(l, 'startTime', 0)), b = num(attr(l, 'endTime', scene.duration));
+      var win = typeof layerWindow === 'function' ? layerWindow(l, scene.duration) : [num(attr(l, 'startTime', 0)), num(attr(l, 'endTime', scene.duration))];
+      var a = win[0], b = win[1];
       if (timeMs < a || timeMs > b) continue;
       var tt = clamp((timeMs - a) / (b - a || 1), 0, 1);
-      var q = tr(l, tt);
+       var q = tr(l, tt);
       var layerId = attr(l, 'id', String(i));
       var prev = previousTransforms[layerId] || { pos: q.pos, scale: q.scale, rot: q.rot };
       var dt = Math.max(1 / Math.max(scene.fps || 30, 1), 1 / 240);
@@ -709,6 +752,10 @@
       var st = imgState(l);
       var noCache = l.getAttribute('fillVideo') || keyframedSize(l);
       var tex;
+      if (l.tagName === 'embedScene') {
+        stats.skipped++;
+        continue;
+      }
       if (noCache) {
         rasterize(l, tt, ext.w, ext.h);
         tex = uploadLayer(ext.w, ext.h);
@@ -742,7 +789,7 @@
 
       var blendId = BLEND[String(attr(l, 'blending', '')).toLowerCase()] || 0;
       traceOn = false;
-       var guard = isCC && !usedComp && blendId === 0 && n === 0;
+      var guard = isCC && !usedComp && blendId === 0 && n === 0 && effs.length === 0;
       if (isCC) {
         var lbl = attr(l, 'label', '') || l.tagName;
         ccTrace.push('#' + i + ' ' + lbl + '  n=' + n + '/' + effs.length +
@@ -753,7 +800,7 @@
        * (lift rusak/belum ke-load) -> fill mentahnya bakal nongol jadi kotak
        * solid. Buang kalo blend normal; blend campur (lighten/screen/...) aman
        * karena gak menutup backdrop (lighten hitam = backdrop). */
-      if (guard) { stats.skipped++; continue; }
+       if (guard) { stats.skipped++; diag('cc-guard', { layer: i, label: attr(l, 'label', l.tagName), effects: effs.map(function (e) { return attr(e, 'id', ''); }) }); continue; }
 
       composite(write, read, cur, ext, q, alpha, blendId);
       var tmp = read; read = write; write = tmp;
@@ -762,7 +809,7 @@
     stats.cc = ccShort.join(' ');
     /* log sekali per perubahan — jangan spam tiap frame */
     var ck = stats.cc + '|' + ccTrace.join('|');
-    if (ccTrace.length && ck !== ccLogKey) { ccLogKey = ck; console.log('[cc]', stats.cc, ccTrace.join(' | ')); }
+    if (ccTrace.length && ck !== ccLogKey) { ccLogKey = ck; console.log('[cc]', stats.cc, ccTrace.join(' | ')); diag('cc-summary', { stats: stats.cc, trace: ccTrace }); }
     engine.blit(read.tex, null, W, H);
     previousTransforms = currentTransforms;
     stats.ms = ((global.performance && performance.now()) || Date.now()) - t0;

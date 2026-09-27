@@ -21,6 +21,8 @@ assert.equal(AM_TIME.layerMsToNormalized(500, 0, 1000), 0.5);
 assert.equal(AM_TIME.normalizedToLayerMs(0.25, 0, 1000), 250);
 const model = createSceneModel(root);
 assert.equal(model.layers.length, 2);
+assert.equal(model.layers[0].parentId, null);
+assert.equal(model.layers[1].parentId, 'parent');
 assert.equal(evaluateKeyframes(model.layers[1].properties.opacity, 500, 0, 1000), 0.5);
 assert.deepEqual(resolveParentTransform(model.layers[1], model.layers, 500).slice(4), [15, 26]);
 assert.deepEqual(evaluateSceneTransform(model, 'child', 500).pos, [15, 26]);

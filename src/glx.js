@@ -157,13 +157,34 @@
          if (!r.ok) throw new Error('gagal memuat ' + src + ' (' + r.status + ')');
       return r.text();
     }).then(function (t) {
-      if (self.precision !== 'highp')
+       /* The APK shader source is translated to ESSL 1.00. WebGL drivers
+        * reject the generated `__sz_*` names (double underscore is reserved),
+        * row-vector mat3 expressions, and non-constant loop bounds. Normalize
+        * those constructs before compile instead of letting an entire effect
+        * family fail at runtime. */
+       t = normalizeEssl(t);
+       if (self.precision !== 'highp')
         t = t.replace(/precision highp float;/, 'precision mediump float;')
              .replace(/precision highp int;/, 'precision mediump int;');
       self.glslSrc.set(path, t);
       return t;
     });
   };
+
+  function normalizeEssl(src) {
+    src = String(src || '').replace(/__sz_/g, 'sz_');
+    src = src.replace(/\(vec4\(\s*([^,()]+)\s*,\s*([^,()]+)\s*,\s*0(?:\.0)?\s*,\s*1(?:\.0)?\s*\)\s*\*\s*acLayerToScreen\)\.xy/g,
+      '(acLayerToScreen * vec3($1, $2, 1.0)).xy');
+    src = src.replace(/for\s*\(\s*int\s+(\w+)\s*=\s*1\s*;\s*\1\s*<\s*([^;]+?)\s*;\s*\1\+\+\s*\)\s*\{/g,
+      function (_, variable, limit) {
+        return 'for (int ' + variable + '=0; ' + variable + '<100; ' + variable + '++) { if (' + variable + ' >= int(' + limit + ')) break;';
+      });
+    src = src.replace(/for\s*\(\s*float\s+(\w+)\s*=\s*1\.0\s*;\s*\1\s*<=\s*([^;]+?)\s*;\s*\1\s*\+=\s*2\.0\s*\)\s*\{/g,
+      function (_, variable, limit) {
+        return 'for (float ' + variable + '=1.0; ' + variable + '<=100.0; ' + variable + '+=2.0) { if (' + variable + ' > ' + limit + ') break;';
+      });
+    return src;
+  }
 
   /* ------------------------------------------------------------- program cache */
   Engine.prototype._program = function (vertPath, fragPath) {
@@ -571,7 +592,7 @@
       if (u.type !== gl.SAMPLER_2D) return;
       var tex = null, w = 1, h = 1;
 
-      if (name.indexOf('__sz_') === 0) return;   // companion handled below
+       if (name.indexOf('__sz_') === 0 || name.indexOf('sz_') === 0) return;   // companion handled below
 
       var p = S.paramMap[name];
       if (p && p.kind === 'texture') {
@@ -597,7 +618,8 @@
       gl.bindTexture(gl.TEXTURE_2D, tex);
       gl.uniform1i(u.loc, unit);
       bound[name] = tex;
-      sizes['__sz_' + name] = [w, h];
+       sizes['__sz_' + name] = [w, h];
+       sizes['sz_' + name] = [w, h];
       unit++;
     });
 
@@ -606,7 +628,7 @@
       var u = P.uniforms[name];
       if (u.type === gl.SAMPLER_2D) return;
 
-      if (name.indexOf('__sz_') === 0) {
+       if (name.indexOf('__sz_') === 0 || name.indexOf('sz_') === 0) {
         var s = sizes[name];
         if (s) gl.uniform2f(u.loc, s[0], s[1]);
         return;

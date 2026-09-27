@@ -16,6 +16,17 @@ const PORT = process.env.PORT || 3000;
 
 const app = express();
 
+// Browser diagnostics sink. The renderer batches/ deduplicates messages and
+// sends them here so imports can be debugged from the terminal running Node.
+app.post('/api/diagnostics', express.json({ limit: '256kb' }), (req, res) => {
+  const body = req.body || {};
+  const title = String(body.title || 'untitled').replace(/[\r\n]/g, ' ').slice(0, 160);
+  const kind = String(body.kind || 'log').replace(/[\r\n]/g, ' ').slice(0, 40);
+  const data = body.data && typeof body.data === 'object' ? body.data : {};
+  console.log(`[browser:${kind}] ${title}`, JSON.stringify(data));
+  res.status(204).end();
+});
+
 // Export endpoint consumes a browser-produced WebM and converts it to MP4/AAC.
 // Keep this route before express.json so binary video data is preserved.
 app.post('/api/export/mp4', express.raw({ type: ['video/webm', 'application/octet-stream'], limit: '512mb' }), async (req, res) => {

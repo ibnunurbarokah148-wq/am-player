@@ -61,7 +61,7 @@ function decorateLayer(node, parentId = null, sceneDuration = 0) {
       else properties[child.attrs.name || child.tag] = makeProperty(child);
     }
   }
-  const explicitParent = node.attrs.parent || null;
+  const explicitParent = node.attrs.parent || node.attrs['data-am-parent'] || null;
   const startTime = finite(node.attrs.startTime, 0);
   const endTime = hasOwn(node.attrs, 'endTime') ? finite(node.attrs.endTime, sceneDuration) : sceneDuration;
   return { id, type: node.tag, label: node.attrs.label || '', parentId: explicitParent || parentId, startTime, endTime, attrs: node.attrs, properties, effects: findChildren(node, 'effect').map(e => ({ ...e.attrs, params: findChildren(e, 'property').map(makeProperty), node: e })), node };
@@ -69,14 +69,18 @@ function decorateLayer(node, parentId = null, sceneDuration = 0) {
 export function createSceneModel(root) {
   const layers = [];
   const duration = finite(root.attrs.totalTime, 0);
-  const layerTags = new Set(['shape', 'text', 'media', 'color', 'drawing', 'audio', 'camera', 'embedScene']);
+  const layerTags = new Set(['shape', 'text', 'media', 'color', 'drawing', 'audio', 'camera', 'embedScene', 'nullobj']);
   const walk = (node, inheritedParent = null) => {
     const isLayer = layerTags.has(node.tag);
     const layer = isLayer ? decorateLayer(node, inheritedParent, duration) : null;
     if (layer) layers.push(layer);
-    const childParent = layer?.id || inheritedParent;
+    /* A layer does not implicitly parent the next document sibling. Parent
+     * inheritance comes from a real group/composition container or the
+     * explicit XML `parent` attribute only. */
+    const childParent = inheritedParent;
     for (const child of node.children || []) {
-      if (child.tag === 'group' || layerTags.has(child.tag)) walk(child, child.attrs.parent || childParent);
+      if (child.tag === 'group') walk(child, child.attrs.parent || childParent);
+      else if (layerTags.has(child.tag)) walk(child, child.attrs.parent || null);
     }
   };
   walk(root);
@@ -136,17 +140,29 @@ export function resolveParentTransform(layer, layers, timeMs, seen = new Set()) 
   const parent = layers.find(item => item.id && item.id === layer.parentId);
   return parent ? multiply(resolveParentTransform(parent, layers, timeMs, seen), local) : local;
 }
+function resolveParentState(layer, layers, timeMs, seen = new Set()) {
+  if (!layer || seen.has(layer.id)) return { matrix: identity(), opacity: 1, z: 0 };
+  seen.add(layer.id);
+  const local = localMatrix(layer, timeMs);
+  const localOpacity = finite(evaluateKeyframes(layer.properties.opacity || {}, timeMs, layer.startTime, layer.endTime), 1);
+  const localZ = finite(evaluateKeyframes(layer.properties.location || {}, timeMs, layer.startTime, layer.endTime)?.[2]);
+  const parent = layers.find(item => item.id && item.id === layer.parentId);
+  if (!parent) return { matrix: local, opacity: localOpacity, z: localZ };
+  const state = resolveParentState(parent, layers, timeMs, seen);
+  return { matrix: multiply(state.matrix, local), opacity: state.opacity * localOpacity, z: state.z + localZ };
+}
 export function evaluateSceneTransform(scene, id, timeMs) {
   const layer = scene?.layers?.find(item => String(item.id) === String(id));
   if (!layer) return { pos: [0, 0], scale: [1, 1], rot: 0, opacity: 1, z: 0, matrix: identity() };
-  const matrix = resolveParentTransform(layer, scene.layers, timeMs);
+  const state = resolveParentState(layer, scene.layers, timeMs);
+  const matrix = state.matrix;
   const rot = Math.atan2(matrix[1], matrix[0]) * 180 / Math.PI;
   return {
     pos: [matrix[4], matrix[5]],
     scale: [Math.hypot(matrix[0], matrix[1]), Math.hypot(matrix[2], matrix[3])],
     rot,
-    opacity: finite(evaluateKeyframes(layer.properties.opacity || {}, timeMs, layer.startTime, layer.endTime), 1),
-    z: finite(evaluateKeyframes(layer.properties.location || {}, timeMs, layer.startTime, layer.endTime)?.[2]),
+    opacity: state.opacity,
+    z: state.z,
     matrix
   };
 }
