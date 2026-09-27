@@ -424,21 +424,64 @@
     var dst = opts.dst || self._target('__dst_' + meta.file + '_' + W + 'x' + H, W, H);
     var warnings = [];
     var readTex = content, finalTex = dst.tex;
+    /* Buffer names are effect-local. Apart from preventing one layer/effect from
+     * seeing another's stale buffer, this lets the same metadata be rendered at
+     * different sizes without retaining an incompatible texture. */
+    var buffers = new Map();
+    var bufferKey = '__fx_' + (meta.file || meta.id || 'effect') + '_';
+    var bufferTarget = function (name, w, h) {
+      var key = bufferKey + name;
+      var t = self._target(key, w, h);
+      buffers.set(name, t);
+      return t;
+    };
+    var textureSize = function (param) {
+      var ds = param && (param.downsample !== undefined ? param.downsample : param.downSample);
+      if (ds === undefined || ds === null) return { w: W, h: H };
+      var x = Array.isArray(ds) ? +ds[0] : +ds;
+      var y = Array.isArray(ds) ? +(ds[1] === undefined ? ds[0] : ds[1]) : x;
+      /* Metadata has used both a divisor (2) and a scale (0.5) convention. */
+      if (!(x > 0)) x = 1;
+      if (!(y > 0)) y = x;
+      if (x < 1) x = 1 / x;
+      if (y < 1) y = 1 / y;
+      return { w: Math.max(1, Math.round(W / x)), h: Math.max(1, Math.round(H / y)) };
+    };
+    var targetParam = function (name) {
+      for (var i = 0; i < (meta.params || []).length; i++)
+        if (meta.params[i].id === name) return meta.params[i];
+      return null;
+    };
 
     for (var it = 0; it < iters; it++) {
       for (var pi = 0; pi < steps.length; pi++) {
         var s = steps[pi], pass = s.pass;
-        var out = pass.target ? self._target(pass.target, W, H) : dst;
-        var passContent = (pass.src && self.targets.get(pass.src))
-          ? self.targets.get(pass.src).tex : content;
+        var td = pass.target ? textureSize(targetParam(pass.target)) : { w: W, h: H };
+        var out = pass.target ? bufferTarget(pass.target, td.w, td.h) : dst;
+        var source = pass.src ? buffers.get(pass.src) : null;
+        var passContent = source ? source.tex : content;
+        /* WebGL forbids sampling a texture attached to the draw FBO. This can
+         * happen through an explicit source or through a buffer sampler in the
+         * delegated shader, so inspect both paths before drawing. */
+        var feedback = passContent === out.tex;
+        if (!feedback) for (var bi = 0; bi < (s.eff.params || []).length; bi++) {
+          var bp = s.eff.params[bi];
+          if (bp.kind === 'texture' && bp.srcType === 'buffer') {
+            var bt = buffers.get(bp.id);
+            if (bt && bt.tex === out.tex) { feedback = true; break; }
+          }
+        }
+        var drawOut = feedback ? self._target(bufferKey + '__feedback_' + it + '_' + pi, td.w, td.h) : out;
 
         self._draw(s.prog, {
           paramMap: s.paramMap, values: s.values, warnings: warnings,
-          globals: self._globals(W, H, pi, opts.time || 0, opts.globals),
+          globals: self._globals(td.w, td.h, pi, opts.time || 0,
+            Object.assign({}, opts.globals || {}, { acScreenSize: [td.w, td.h] })),
           content: passContent, comp: opts.comp || content,
-          images: opts.images || {}, buffers: self.targets,
-          width: W, height: H, target: out
+          images: opts.images || {}, buffers: buffers,
+          width: td.w, height: td.h, target: drawOut
         });
+        if (feedback) self.blit(drawOut.tex, out, td.w, td.h);
 
         if (!pass.target) finalTex = out.tex;
         readTex = out.tex;
@@ -531,6 +574,8 @@
         if (p.srcType === 'buffer') {
           var b = S.buffers.get(name);
           tex = b ? b.tex : S.content; w = b ? b.w : S.width; h = b ? b.h : S.height;
+          if (!b) S.warnings && S.warnings.push('buffer ' + name + ' belum tersedia; memakai content');
+
         } else if (p.srcType === 'image') {
           var im = S.images[name];
           if (im && im.tex) { tex = im.tex; w = im.width; h = im.height; }

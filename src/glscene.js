@@ -143,10 +143,10 @@
   function parseColor(v) {
     v = String(v || '#ff000000');
     if (/^#[0-9a-f]{8}$/i.test(v))
-      return [parseInt(v.slice(2, 4), 16) / 255,
-              parseInt(v.slice(4, 6), 16) / 255,
-              parseInt(v.slice(6, 8), 16) / 255,
-              parseInt(v.slice(0, 2), 16) / 255];
+      return [parseInt(v.slice(3, 5), 16) / 255,
+              parseInt(v.slice(5, 7), 16) / 255,
+              parseInt(v.slice(7, 9), 16) / 255,
+              parseInt(v.slice(1, 3), 16) / 255];
     if (/^#[0-9a-f]{6}$/i.test(v))
       return [parseInt(v.slice(1, 3), 16) / 255,
               parseInt(v.slice(3, 5), 16) / 255,
@@ -175,7 +175,9 @@
     'uniform float uAlpha;',
     'uniform int uBlend;',
     'void main(){',
-    '  vec3 dst=texture2D(uDst,vUv).rgb;',
+    '  vec4 dstSample=texture2D(uDst,vUv);',
+    '  vec3 dst=dstSample.rgb;',
+
     '  vec2 sp=vec2(vUv.x,1.0-vUv.y)*uScene;',           // scene px, y-down
     '  vec2 d=sp-uPos;',
     '  float c=cos(-uRot),s=sin(-uRot);',
@@ -183,12 +185,14 @@
     '  vec2 l=vec2(r.x/(abs(uScale.x)<1e-4?1e-4:uScale.x),',
     '              r.y/(abs(uScale.y)<1e-4?1e-4:uScale.y));',
     '  vec2 hn=l/uHalf;',
-    '  if(abs(hn.x)>1.0||abs(hn.y)>1.0){gl_FragColor=vec4(dst,1.0);return;}',
+    '  if(abs(hn.x)>1.0||abs(hn.y)>1.0){gl_FragColor=dstSample;return;}',
+
     '  vec2 suv=vec2(hn.x*0.5+0.5,0.5-hn.y*0.5);',
     '  vec4 src=texture2D(uSrc,suv);',
     '  float a=clamp(src.a*uAlpha,0.0,1.0);',
-    '  if(uBlend==13){gl_FragColor=vec4(dst*src.a,1.0);return;}',  /* mask = destination-in */
-    '  if(uBlend==20){gl_FragColor=vec4(dst*(1.0-src.a),1.0);return;}', /* exclude = destination-out */
+    '  if(uBlend==13){gl_FragColor=vec4(dst*src.a,dstSample.a*src.a);return;}',  /* mask = destination-in */
+    '  if(uBlend==20){gl_FragColor=vec4(dst*(1.0-src.a),dstSample.a*(1.0-src.a));return;}', /* exclude = destination-out */
+
     '  vec3 top=src.rgb,bot=dst;',
     '  vec3 b;',
     '  if(uBlend==0){b=top;}',
@@ -212,7 +216,8 @@
     '  else if(uBlend==19){b=0.5-2.0*(bot-0.5)*(top-0.5);}',
     '  else if(uBlend==21){b=max(bot+top-1.0,0.0);}',
     '  else{b=top;}',
-    '  gl_FragColor=vec4(mix(dst,b,a),1.0);',
+    '  gl_FragColor=vec4(mix(dst,b,a),mix(dstSample.a,1.0,a));',
+
     '}'
   ].join('\n');
 
@@ -226,6 +231,8 @@
     'uniform vec2 uOffset;',     // layer px, y-down
     'uniform float uAlpha;',
     'uniform float uRot;',       // radians
+    'uniform float uOffsetAngle;', // rotate displacement vector
+    'uniform float uSlack;',     // shake Y multiplier
     'uniform float uNoise;',     // px
     'uniform float uEvo;',
     'uniform float uSeed;',
@@ -234,7 +241,10 @@
     '  vec2 uv=vUv;',
     '  if(uRot!=0.0){vec2 c=uv-0.5;float s=sin(uRot),co=cos(uRot);',
     '    uv=vec2(c.x*co-c.y*s,c.x*s+c.y*co)+0.5;}',
-    '  uv+=vec2(uOffset.x/max(uSize.x,1.0),-uOffset.y/max(uSize.y,1.0));',
+    '  vec2 off=uOffset*vec2(1.0,uSlack);',
+    '  float oc=cos(uOffsetAngle),os=sin(uOffsetAngle);',
+    '  off=vec2(off.x*oc-off.y*os,off.x*os+off.y*oc);',
+    '  uv+=vec2(off.x/max(uSize.x,1.0),-off.y/max(uSize.y,1.0));',
     '  if(uNoise!=0.0){',
     '    vec2 cell=floor(uv*uSize/6.0)+vec2(uEvo,uSeed);',
     '    vec2 r=vec2(h21(cell),h21(cell+31.7))-0.5;',
@@ -450,7 +460,7 @@
 
   /** Native effect -> builtin shader uniforms. Returns null to pass through. */
   function nativeUniforms(file, v, timeSec, durSec) {
-    var u = { ox: 0, oy: 0, alpha: 1, rot: 0, noise: 0, evo: 0, seed: 0 };
+    var u = { ox: 0, oy: 0, alpha: 1, rot: 0, noise: 0, evo: 0, seed: 0, angle: 0, slack: 1 };
     switch (NATIVE[file]) {
       case 1: {                                   // fade: in/out ramp
         var tin = Math.abs(num(v.inTime, 0.5));
@@ -482,9 +492,11 @@
         var sp = num(v.speed, 0) || num(v.freq, 2);
         var evo = num(v.evolution, 0);
         var sd = num(v.seed, 0);
-        var x = timeSec * sp * 3 + evo;
+        var x = timeSec * sp + evo;
         u.ox = (vnoise(x + sd * 7.3) - 0.5) * 2 * mg;
         u.oy = (vnoise(x + sd * 7.3 + 19.7) - 0.5) * 2 * mg;
+        u.angle = num(v.angle, 45) * Math.PI / 180;
+        u.slack = clamp(num(v.slack, 0.25), 0, 1);
         break;
       }
       case 5: {                                   // swing / swing2
@@ -532,6 +544,8 @@
     u2f(P, 'uOffset', u.ox, u.oy);
     u1f(P, 'uAlpha', u.alpha);
     u1f(P, 'uRot', u.rot);
+    u1f(P, 'uOffsetAngle', u.angle || 0);
+    u1f(P, 'uSlack', u.slack === undefined ? 1 : u.slack);
     u1f(P, 'uNoise', u.noise);
     u1f(P, 'uEvo', u.evo);
     u1f(P, 'uSeed', u.seed);
@@ -568,6 +582,8 @@
     if (broken[id]) { stats.broken++; trc(id, 'rusak', false, null); return {}; }
 
     var vals = valuesOf(el, meta, tt);
+    // APK disables Gaussian blur's shader group at zero strength.
+    if (meta.file === 'gaussianblur' && vals.strength <= 0.0001) return {};
     /* Efek macam `lift` (Copy Background) nyedot tex komposit bawah lewat param
      * srcType="comp" — tanda layer ini berubah jadi adjustment layer. */
     var usesComp = false;
@@ -603,8 +619,11 @@
       trc(id, 'ok', usesComp, vals);
       return { tex: res.texture, n: n + 1, usesComp: usesComp };
     } catch (e) {
-      if (!errSeen[id]) { errSeen[id] = 1; console.warn('[glscene] effect gagal:', id, e); }
-      broken[id] = true;
+      var detail = '[' + id + '] ' + (e && e.message ? e.message : String(e));
+      if (e && e.shaderTag) detail += ' (shader: ' + e.shaderTag + ')';
+      if (!errSeen[id]) { errSeen[id] = 1; console.error('[glscene] effect gagal:', detail, e); }
+      broken[id] = detail;
+
       stats.skipped++;
       trc(id, 'ERROR', false, vals);
       return {};
@@ -754,7 +773,7 @@
               im.src = URL.createObjectURL(b);
             });
           }).then(function (img) {
-            out[p.id] = engine.textureFromCanvas(img, true);
+            out[p.id] = { tex: engine.textureFromCanvas(img, true), width: img.width, height: img.height };
           }).catch(function (e) {
             console.warn('[glscene] gambar effect gagal:', p.src, e);
           })

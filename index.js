@@ -1,14 +1,45 @@
 import express from 'express';
 import path from 'path';
+import fs from 'fs';
+import os from 'os';
 import crypto from 'crypto';
+import { promisify } from 'util';
+import { execFile } from 'child_process';
 import JSZip from 'jszip';
 import { fileURLToPath } from 'url';
+
+const execFileAsync = promisify(execFile);
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = __dirname;
 const PORT = process.env.PORT || 3000;
 
 const app = express();
+
+// Export endpoint consumes a browser-produced WebM and converts it to MP4/AAC.
+// Keep this route before express.json so binary video data is preserved.
+app.post('/api/export/mp4', express.raw({ type: ['video/webm', 'application/octet-stream'], limit: '512mb' }), async (req, res) => {
+  if (!req.body?.length) return res.status(400).json({ error: 'WebM body kosong' });
+  const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'am-export-'));
+  const input = path.join(dir, 'input.webm'), output = path.join(dir, 'output.mp4');
+  try {
+    await fs.promises.writeFile(input, req.body);
+    await execFileAsync(process.env.FFMPEG_PATH || 'ffmpeg', [
+      '-y', '-i', input,
+      '-map', '0:v:0', '-map', '0:a:0?',
+      '-c:v', 'libx264', '-preset', process.env.FFMPEG_PRESET || 'veryfast',
+      '-crf', process.env.FFMPEG_CRF || '18', '-pix_fmt', 'yuv420p',
+      '-movflags', '+faststart', '-c:a', 'aac', '-b:a', '192k', output
+    ], { windowsHide: true, maxBuffer: 8 * 1024 * 1024 });
+    const mp4 = await fs.promises.readFile(output);
+    res.status(200).set({ 'Content-Type': 'video/mp4', 'Content-Disposition': 'attachment; filename="alight-motion-export.mp4"' }).send(mp4);
+  } catch (error) {
+    console.error('[export/mp4]', error);
+    res.status(500).json({ error: 'Konversi MP4 gagal. Pastikan FFmpeg tersedia di server.', detail: error.message });
+  } finally {
+    await fs.promises.rm(dir, { recursive: true, force: true }).catch(() => {});
+  }
+});
 
 // Serve static
 app.use('/src', express.static(path.join(ROOT, 'src')));
