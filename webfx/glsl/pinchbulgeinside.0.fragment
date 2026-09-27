@@ -1,0 +1,89 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform vec2 centerPoint;
+uniform float strength;
+uniform float radius;
+uniform float feather;
+uniform bool gaussian;
+
+
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        float gsmooth(float low, float high, float value) {
+            float p = clamp((value-low)/(high-low),0.,1.);
+            p -= 1.0;
+            return pow(2.71828,-((p*p)/0.125));
+        }
+
+        void main() {
+            vec2 st = acLayerNorm;
+            vec2 center = centerPoint/1000. * vec2(1.,-1.);
+
+            float insideLayer = step(0.0,acLayerNorm.x) * step(acLayerNorm.x,1.0) * step(0.0,acLayerNorm.y) * step(acLayerNorm.y,1.0);
+            float damping = smoothstep(0.0,feather,acLayerNorm.x) * smoothstep(0.0,feather,acLayerNorm.y) * smoothstep(1.0,1.0-feather,acLayerNorm.x) * smoothstep(1.0,1.0-feather,acLayerNorm.y);
+
+            st -= 0.5;
+            st.x *= acLayerSize.x / acLayerSize.y;
+            st -= center;
+            float dist = length(st);
+            vec2 prevSt = st;
+            if ( dist < radius ) {
+                float p = dist / radius;
+
+                //p *= damping * insideLayer;
+
+                if(strength > 0.) {
+                    if( gaussian ) {
+                        st *= mix(1.0, gsmooth(0.0, radius / dist, p), strength * 0.75);
+                    } else {
+                        st *= mix(1.0, smoothstep(0.0, radius / dist, p), strength * 0.75);
+                    }
+                } else {
+                    st *= mix(1.0, pow(p, 1.0 + strength * 0.75) * radius / dist, 1.0 - p);
+                }
+
+                st = mix(prevSt,st,damping*insideLayer);
+            }
+            st += center;
+            st.x /= acLayerSize.x / acLayerSize.y;
+            st += 0.5;
+
+            gl_FragColor = texture2DCv(inputImg,l2s(st));
+
+        }
+
+    

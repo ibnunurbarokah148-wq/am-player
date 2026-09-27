@@ -1,0 +1,89 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform float size;
+uniform vec2 stretch;
+uniform float amount;
+uniform bool mono;
+uniform float freeze;
+uniform bool extremes;
+uniform vec2 position;
+uniform float overshoot;
+uniform float seed;
+
+
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg,acScreenNorm);
+            vec2 st = floor((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter-position+vec2(1234.23,5678.56))/acLayerSize;
+            vec2 actualSize;
+            actualSize = vec2(size*stretch.x,size*stretch.y);
+            actualSize = vec2(150.)/actualSize;
+            st = floor(st*actualSize)/actualSize;
+            float c = overshoot; //clampRange? 1.0 : 2.0;
+            float t = freeze ? 1.0 : acTime;
+            t += seed*3197.3791;
+            if( mono ) {
+                float t = mod(t,2.8)+2.7;
+                float r = rand( st*t );
+                if( extremes ) r = step(0.5,r);
+                r = (r * amount * c) + 1.0 - amount;
+                gl_FragColor = vec4(vec3(r),1.0)*texColor;
+            } else {
+                float tr = mod(t,4.7)+2.87;
+                float tg = mod(t,2.8)+1.55;
+                float tb = mod(t,3.25)+6.271;
+                float r = rand( st*tr );
+                float g = rand( st*tg );
+                float b = rand( st*tb );
+                if( extremes ) r = step(0.5,r);
+                if( extremes ) g = step(0.5,g);
+                if( extremes ) b = step(0.5,b);
+                r = (r * amount * c) + 1.0 - amount;
+                g = (g * amount * c) + 1.0 - amount;
+                b = (b * amount * c) + 1.0 - amount;
+                gl_FragColor = vec4(vec3(r,g,b),1.0)*texColor;
+            }
+        }
+
+    

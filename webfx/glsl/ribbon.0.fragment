@@ -1,0 +1,110 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform float amplitude;
+uniform float frequency;
+uniform float width;
+uniform float phase;
+uniform float offset;
+uniform vec4 color;
+uniform bool punchout;
+uniform float smoothing;
+uniform vec4 tintColor;
+uniform float tint;
+uniform float angle;
+
+
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg,acScreenNorm);
+            vec2 st = acLayerNorm.st;
+
+            float a = angle * 0.0174533;
+            st -= 0.5;
+            st *= mat2(
+                cos(a), -sin(a),
+                sin(a), cos(a)
+            );
+            st += 0.5;
+
+            float x = st.x;
+
+            float y;
+            float t;
+
+            y = sin(x * frequency);
+            t = 0.01*(-phase*130.0);
+            y += sin(x*frequency*2.1 + t)*4.5;
+            y += sin(x*frequency*1.72 + t*1.121)*4.0;
+            y += sin(x*frequency*2.221 + t*0.437)*5.0;
+            y += sin(x*frequency*3.1122+ t*4.269)*2.5;
+            y *= amplitude*0.03;
+            y += 0.5 + offset;
+
+            float y1 = y;
+
+            y = sin(x * frequency);
+            t = 0.01*(-phase*130.0)+width;
+            y += sin(x*frequency*2.1 + t)*4.5;
+            y += sin(x*frequency*1.72 + t*1.121)*4.0;
+            y += sin(x*frequency*2.221 + t*0.437)*5.0;
+            y += sin(x*frequency*3.1122+ t*4.269)*2.5;
+            y *= amplitude*0.03;
+            y += 0.5 + offset;
+
+            float y2 = y;
+
+            //float p = = st.y > min(y1,y2) && st.y < max(y1,y2) ? color : vec4(0.);
+
+            float lowy = min(y1,y2);
+            float highy = max(y1,y2);
+
+            //float b = smoothing*(highy-lowy)/2.;
+            float b = smoothing/20.;
+
+            //float p = st.y > lowy && st.y < highy ? 1.0 : 0.0;
+
+            float p = min(smoothstep(lowy-b/2.,lowy+b/2.,st.y), 1.-smoothstep(highy-b/2.,highy+b/2.,st.y));
+
+            vec4 mixedColor = mix(color,tintColor,smoothstep(y1,y2,st.y)*tint);
+
+            vec4 c = mixedColor * p;
+            if( punchout ) {
+                gl_FragColor = texColor * (1.0-p);
+            } else {
+                c *= texColor.a;
+                gl_FragColor = c + (texColor*(1.0-c.a));
+            }
+        }
+
+    

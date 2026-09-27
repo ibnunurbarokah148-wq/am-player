@@ -1,0 +1,79 @@
+precision highp float;
+precision highp int;
+
+attribute vec4 acPos;
+attribute vec2 acTexcoord;
+
+varying vec2 acScreenNorm;
+
+uniform vec2 acScreenSize;
+uniform vec2 acLayerSize;
+
+void vertShaderInit(void) {
+    gl_Position  = acPos;
+    acScreenNorm = acTexcoord;
+}
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform mat4 orient;
+uniform vec3 rotate;
+uniform float size;
+uniform float shape;
+uniform vec3 position;
+uniform float scale;
+uniform int shadingType;
+uniform float lightIntensity;
+uniform float shine;
+uniform float spec;
+uniform float ambient;
+uniform vec4 lightColor;
+uniform vec2 lightDir;
+uniform float lightDepth;
+uniform bool mirror;
+uniform float texCrop;
+uniform float texScale;
+uniform float texStretch;
+uniform float texAngle;
+uniform float texTwirl;
+uniform vec2 texOffset;
+uniform float MAX_ITER;
+
+
+
+        varying mat4 invOrient;
+
+        mat4 inverse( in mat4 m )
+        {
+            return mat4(
+                m[0][0], m[1][0], m[2][0], 0.0,
+                m[0][1], m[1][1], m[2][1], 0.0,
+                m[0][2], m[1][2], m[2][2], 0.0,
+                -dot(m[0].xyz,m[3].xyz),
+                -dot(m[1].xyz,m[3].xyz),
+                -dot(m[2].xyz,m[3].xyz),
+                1.0 );
+        }
+
+        mat4 rotationAxisAngle( vec3 v, float angle )
+        {
+            float s = sin( angle );
+            float c = cos( angle );
+            float ic = 1.0 - c;
+
+            return mat4( v.x*v.x*ic + c,     v.y*v.x*ic - s*v.z, v.z*v.x*ic + s*v.y, 0.0,
+                         v.x*v.y*ic + s*v.z, v.y*v.y*ic + c,     v.z*v.y*ic - s*v.x, 0.0,
+                         v.x*v.z*ic - s*v.y, v.y*v.z*ic + s*v.x, v.z*v.z*ic + c,     0.0,
+                         0.0,                0.0,                0.0,                1.0 );
+        }
+
+        void main() {
+            vertShaderInit();
+            vec3 r = rotate * 0.0174533;
+            mat4 rx = rotationAxisAngle(vec3(1.,0.,0.),r.x);
+            mat4 ry = rotationAxisAngle(vec3(0.,1.,0.),r.y);
+            mat4 rz = rotationAxisAngle(vec3(0.,0.,1.),r.z);
+            invOrient = orient * rz * rx * ry;
+        }
+
+    

@@ -1,0 +1,85 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform float amount;
+uniform float size;
+uniform vec2 stretch;
+uniform float seed;
+uniform float fade;
+uniform vec2 offset;
+
+
+
+        float rand(vec2 co)
+        {
+            float a = 719.310;
+            float b = 178.233;
+            float c = 33758.5453;
+            float dt= dot(co.xy ,vec2(a,b));
+            float sn= mod(dt,3.14);
+            return fract(sin(sn) * c);
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg,acScreenNorm);
+            vec2 st = floor((vec2(acScreenNorm.x,1.0-acScreenNorm.y)*acScreenSize)-acLayerCenter)/acLayerSize;
+            float t = seed*3197.3791;
+            t = mod(t,2.8)+2.7;
+            float tileSize = min(acLayerSize.x, acLayerSize.y)/size;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= offset/1000.0;
+            st *= tileSize;
+            vec2 scaleVec;
+            st.x /= stretch.x;
+            st.y /= stretch.y;
+            st = floor(st);
+
+            // st.x /= stretch;
+            // st /= tileSize;
+            // st += offset/1000.0;
+            // st.x /= acLayerSize.x/acLayerSize.y;
+
+            float r = rand( st*t );
+            //r = step(amount,r);
+            //float scale = 1.0/(1.0+fade);
+            //r = smoothstep(amount*scale, (amount+fade)*scale, r);
+            float adjFade = max(fade,0.00001);
+            float adjAmount = amount;
+            adjAmount -= 0.5;
+            adjAmount *= 1.0+(adjFade*2.0);
+            adjAmount += 0.5;
+            r = smoothstep(adjAmount-adjFade, adjAmount+adjFade, r);
+            gl_FragColor = texColor*r;
+        }
+
+    

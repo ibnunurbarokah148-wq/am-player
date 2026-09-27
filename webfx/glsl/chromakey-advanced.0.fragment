@@ -1,0 +1,115 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform float c1active;
+uniform float c1mode;
+uniform vec4 c1color;
+uniform float c1threshold;
+uniform float c1feather;
+uniform float c1luma;
+uniform float c2active;
+uniform float c2mode;
+uniform vec4 c2color;
+uniform float c2threshold;
+uniform float c2feather;
+uniform float c2luma;
+uniform float c3active;
+uniform float c3mode;
+uniform vec4 c3color;
+uniform float c3threshold;
+uniform float c3feather;
+uniform float c3luma;
+uniform float c4active;
+uniform float c4mode;
+uniform vec4 c4color;
+uniform float c4threshold;
+uniform float c4feather;
+uniform float c4luma;
+uniform float showMask;
+
+
+
+        highp mat3 rgb2yuv = mat3(
+             0.299,     0.587,    0.114,
+            -0.14713,  -0.28886,  0.436,
+             0.615,    -0.51499, -0.10001
+        );
+
+        highp mat3 yuv2rgb = mat3(
+            1.0,  0.0,      1.13983,
+            1.0, -0.39465, -0.58060,
+            1.0,  2.03211,  0.0
+        );
+        
+        vec4 calcKey(int mode, vec4 keyColor, float threshold, float feather, float lumaSensitivity, vec4 texColor, vec3 texYUV ) {
+            vec3 keyYUV = keyColor.rgb * rgb2yuv;
+            float dist = length((keyYUV - texYUV) * vec3(lumaSensitivity,1.0,1.0));
+            float a = 1. - smoothstep( threshold-max(feather,0.00001), threshold, dist );
+            if( mode==0 ) {
+                return vec4(a,0.,1.,0.);
+            } else if( mode==1 ) {
+                return vec4(0.,a,0.,1.);
+            } else {
+                return vec4(0.);
+            }
+        }
+
+        void main() {
+
+
+            vec4 texColor = texture2DCv(inputImg,acScreenNorm);
+            //vec4 blurColor = texture2DCv(hblur.texture,acScreenNorm);
+            vec3 texYUV = texColor.rgb * rgb2yuv;
+            
+            vec4 key = vec4(0.);
+            key += calcKey(c1active ? c1mode : 2, c1color, c1threshold, c1feather, c1luma, texColor, texYUV);
+            key += calcKey(c2active ? c2mode : 2, c2color, c2threshold, c2feather, c2luma, texColor, texYUV);
+            key += calcKey(c3active ? c3mode : 2, c3color, c3threshold, c3feather, c3luma, texColor, texYUV);
+            key += calcKey(c4active ? c4mode : 2, c4color, c4threshold, c4feather, c4luma, texColor, texYUV);
+
+            float alpha = clamp(step(0.5,key.z) - clamp(key.x,0.,1.) + clamp(key.y,0.,1.), 0., 1.);
+
+            vec2 halfFragSize = vec2(1.0)/getTexSize(__sz_inputImg)/2.;
+            if(acLayerNorm.x <= halfFragSize.x || acLayerNorm.x >= 1.0 - halfFragSize.x || acLayerNorm.y <= halfFragSize.y || acLayerNorm.y >= 1.0 - halfFragSize.y) {
+                alpha = 0.0;
+            }
+            
+            //fringeBias *= (1. - blurColor.a);
+            //vec3 defringedYUV = (texColor.rgb+fringeBias.rgb)*rgb2yuv;
+            //defringedYUV.x = texYUV.x;
+            //texColor.rgb = defringedYUV * yuv2rgb;
+            
+            gl_FragColor = showMask ? vec4(alpha,0.,0.,1.)*texColor.a : vec4(texColor.rgb*alpha,alpha*texColor.a);
+        }
+
+    
