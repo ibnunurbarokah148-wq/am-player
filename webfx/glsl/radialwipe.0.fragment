@@ -1,0 +1,90 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform float progress;
+uniform float offset;
+uniform vec2 centerPoint;
+uniform float feather;
+uniform int direction;
+uniform float repeatCount;
+
+
+
+        vec2 project(vec2 a, vec2 b) {
+            return (dot(a,b)/dot(b,b)) * b;
+        }
+
+        const float twopi = 6.2831853072;
+
+        void main() {
+            vec2 st = acLayerNorm;
+            st.y = 1. - st.y;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+            st -= centerPoint / 1200.0;
+
+            float adjProgress = (direction==1) ? 360.0-progress : progress;
+
+            float start = 0.0;
+            float end = adjProgress;
+
+            end -= 180.0;
+            end *= (360.0+feather)/360.0;
+            end += 180.0;
+
+            float offsetRad = (offset-90.0+(direction==2?end/2.0/repeatCount:0.0)) * 0.0174533;
+            mat2 offsetRot = mat2(cos(offsetRad),-sin(offsetRad),sin(offsetRad),cos(offsetRad));
+
+            st *= offsetRot;
+
+            float adjFeather = max(0.01,feather * 0.0174533);
+            float halfFeather = adjFeather / 2.0;
+
+            float startRad = start * 0.0174533;
+            float endRad= end * 0.0174533;
+
+            float a = atan(st.y,st.x) + 3.14159;
+
+            a = mod(a * repeatCount,twopi);
+
+            float p0 = smoothstep(adjFeather,0.0,a);
+            float p1 = smoothstep(endRad-halfFeather,endRad+halfFeather,a); // a<adjFeather?a+twopi:
+            float p2 = smoothstep(endRad-twopi+halfFeather,endRad-twopi-halfFeather,a); // a<adjFeather?a+twopi:
+            float pp = adjProgress<=0.0001?1.0:adjProgress>=359.999?0.0:min(1.0,p1+p0-p2);
+            if( direction==1 ) {
+                pp = 1.0-pp;
+            }
+            gl_FragColor = texture2DCv(inputImg,acScreenNorm.st)*pp;
+        }
+
+    

@@ -1,0 +1,61 @@
+precision highp float;
+precision highp int;
+
+attribute vec4 acPos;
+attribute vec2 acTexcoord;
+
+varying vec2 acScreenNorm;
+
+uniform vec2 acScreenSize;
+uniform vec2 acLayerSize;
+
+void vertShaderInit(void) {
+    gl_Position  = acPos;
+    acScreenNorm = acTexcoord;
+}
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform mat4 orient;
+uniform float radius;
+uniform float height;
+uniform float zdist;
+uniform float scale;
+uniform int shadingType;
+uniform float lightIntensity;
+uniform float shine;
+uniform float spec;
+uniform float ambient;
+uniform vec4 lightColor;
+uniform vec2 lightDir;
+uniform float lightDepth;
+uniform bool mirror;
+uniform float texCrop;
+uniform float texScale;
+uniform vec2 texStretch;
+uniform float texAngle;
+uniform float texTwirl;
+uniform vec2 texOffset;
+
+
+
+        varying mat4 invOrient;
+
+        mat4 inverse( in mat4 m )
+        {
+            return mat4(
+                m[0][0], m[1][0], m[2][0], 0.0,
+                m[0][1], m[1][1], m[2][1], 0.0,
+                m[0][2], m[1][2], m[2][2], 0.0,
+                -dot(m[0].xyz,m[3].xyz),
+                -dot(m[1].xyz,m[3].xyz),
+                -dot(m[2].xyz,m[3].xyz),
+                1.0 );
+        }
+
+        void main() {
+            vertShaderInit();
+            invOrient = (orient);
+        }
+
+    

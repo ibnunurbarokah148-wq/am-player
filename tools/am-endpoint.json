@@ -1,0 +1,573 @@
+{
+  "meta": {
+    "name": "Alight Motion Endpoints — Master Reference",
+    "version": "1.0.0",
+    "generated": "2026-09-25",
+    "appVersion": "5.0.273.1028425",
+    "appBuild": 1028417,
+    "packageName": "com.alightcreative.motion",
+    "sources": [
+      "deobf.js (runtime parser)",
+      "JADX decompiled sources",
+      "adb logcat (on-device)",
+      "github.com/boiniArun2006/am-xml",
+      "github.com/boiniArun2006/alight-motion-xml-schema"
+    ]
+  },
+
+  "baseUrls": {
+    "primary": [
+      {
+        "url": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+        "confirmed": true,
+        "source": "adb logcat",
+        "notes": "Base URL utama untuk platform Android. Endpoint /v2/users/setup terkonfirmasi."
+      },
+      {
+        "url": "https://alight-motion.bendingspoons.com",
+        "confirmed": true,
+        "source": "grep am-xml/strings classes.dex",
+        "notes": "Base URL alternatif — kemungkinan backend utama baru."
+      },
+      {
+        "url": "https://api.pico.bendingspoonsapps.com",
+        "confirmed": true,
+        "source": "adb logcat",
+        "notes": "Endpoint events/tracking. /v4/events terkonfirmasi."
+      },
+      {
+        "url": "https://api.picox.bendingspoons.com",
+        "confirmed": true,
+        "source": "grep classes.dex",
+        "notes": "Endpoint events v1."
+      },
+      {
+        "url": "https://api.staging.pico.bendingspoonsapps.com",
+        "confirmed": true,
+        "source": "grep classes.dex",
+        "notes": "Staging environment."
+      }
+    ],
+    "web": [
+      {
+        "url": "https://alightcreative.com",
+        "confirmed": true,
+        "source": "grep classes.dex"
+      },
+      {
+        "url": "https://www.alightcreative.com",
+        "confirmed": true,
+        "source": "grep classes.dex"
+      },
+      {
+        "url": "https://alight-creative-staging.firebaseapp.com",
+        "confirmed": true,
+        "source": "grep classes.dex"
+      },
+      {
+        "url": "https://alight-fonts.firebaseapp.com",
+        "confirmed": true,
+        "source": "grep classes.dex"
+      }
+    ],
+    "analytics": [
+      {
+        "url": "https://spidersense.bendingspoons.com",
+        "confirmed": true
+      },
+      {
+        "url": "https://builds.mosaic-matrix.bendingspoons.com/AlightMotionAndroid/versioning.json",
+        "confirmed": true
+      }
+    ]
+  },
+
+  "endpoints": {
+    "confirmed": [
+      {
+        "id": "users.setup",
+        "method": "GET",
+        "url": "https://alightmotionandroid.oracle.bendingspoonsapps.com/v2/users/setup",
+        "source": "adb logcat",
+        "confirmed": true,
+        "response": "json",
+        "notes": "Endpoint konfigurasi user."
+      },
+      {
+        "id": "events.v4",
+        "method": "POST",
+        "url": "https://api.pico.bendingspoonsapps.com/v4/events",
+        "source": "adb logcat",
+        "confirmed": true,
+        "request": {
+          "type": "json",
+          "fields": ["event", "timestamp", "properties"]
+        },
+        "notes": "Event tracking."
+      },
+      {
+        "id": "events.v1.picox",
+        "method": "POST",
+        "url": "https://api.picox.bendingspoons.com/v1/events",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "request": {
+          "type": "json"
+        }
+      },
+      {
+        "id": "share.link",
+        "method": "GET",
+        "url": "https://alightcreative.com/am/share/u/<pid>",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "notes": "URL share link yang di-redirect dari alight.link/<id>. Mengembalikan HTML/JS yang berisi metadata project.",
+        "aliases": [
+          "http://alightcreative.com/am/share/u/<pid>",
+          "https://alightcreative.com/am/share/u/<pid>"
+        ]
+      },
+      {
+        "id": "appdata.am.root",
+        "method": "GET",
+        "url": "https://alightcreative.com/appdata/am/",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "notes": "Base directory untuk app data."
+      },
+      {
+        "id": "appdata.recommendations",
+        "method": "GET",
+        "url": "https://alightcreative.com/appdata/am/elements/recommendations.json",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "response": "json"
+      },
+      {
+        "id": "appdata.tutorial",
+        "method": "GET",
+        "url": "https://alightcreative.com/appdata/am/tutorial-data/android.json",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "response": "json"
+      },
+      {
+        "id": "elements.browser",
+        "method": "GET",
+        "url": "https://alightcreative.com/elements?embed=true",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "response": "html"
+      },
+      {
+        "id": "fontthumbs",
+        "method": "GET",
+        "url": "https://alight-fonts.firebaseapp.com/appdata/fontthumbs/20180905A/webp/",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "notes": "Thumbnail font."
+      },
+      {
+        "id": "versioning",
+        "method": "GET",
+        "url": "https://builds.mosaic-matrix.bendingspoons.com/AlightMotionAndroid/versioning.json",
+        "source": "grep classes.dex",
+        "confirmed": true,
+        "response": "json",
+        "notes": "Info versi build."
+      }
+    ],
+
+    "metadata": {
+      "description": "Endpoint untuk mengambil metadata project dari share link. Path belum terkonfirmasi 100%, tapi ada kandidat kuat.",
+      "method": "POST",
+      "requestModel": "AlightLinkMetadataRequest",
+      "responseModel": "AlightLinkMetadataResponse",
+      "requestBody": {
+        "uid": "string",
+        "pid": "string",
+        "platform": "string (android|ios)",
+        "appBuild": "integer (1028417)",
+        "acctTestMode": "string"
+      },
+      "responseBody": {
+        "result": "string",
+        "info": "object",
+        "download": "string (URL)",
+        "liteVersionAvailable": "boolean",
+        "freeUserMaxDownloadSize": "integer",
+        "message": "string",
+        "errorCode": "string",
+        "errorMessage": "string"
+      },
+      "candidates": [
+        {
+          "base": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+          "path": "/v2/link/metadata",
+          "priority": "high"
+        },
+        {
+          "base": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+          "path": "/v3/link/metadata",
+          "priority": "high"
+        },
+        {
+          "base": "https://alight-motion.bendingspoons.com",
+          "path": "/v1/link/metadata",
+          "priority": "high"
+        },
+        {
+          "base": "https://alight-motion.bendingspoons.com",
+          "path": "/v2/link/metadata",
+          "priority": "high"
+        },
+        {
+          "base": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+          "path": "/v2/project/metadata",
+          "priority": "medium"
+        },
+        {
+          "base": "https://alight-motion.bendingspoons.com",
+          "path": "/v2/share/resolve",
+          "priority": "medium"
+        }
+      ]
+    },
+
+    "download": {
+      "description": "Endpoint untuk request download package project. Path belum terkonfirmasi.",
+      "method": "POST",
+      "requestModel": "RequestProjectDownloadRequest",
+      "responseModel": "RequestProjectDownloadResponse",
+      "requestBody": {
+        "uid": "string",
+        "pid": "string",
+        "platform": "string",
+        "appBuild": "integer",
+        "liteVersion": "boolean",
+        "acctTestMode": "string"
+      },
+      "responseBody": {
+        "result": "string",
+        "downloadUri": "string (URL)"
+      },
+      "candidates": [
+        {
+          "base": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+          "path": "/v2/link/download",
+          "priority": "high"
+        },
+        {
+          "base": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+          "path": "/v3/link/download",
+          "priority": "high"
+        },
+        {
+          "base": "https://alight-motion.bendingspoons.com",
+          "path": "/v1/link/download",
+          "priority": "high"
+        },
+        {
+          "base": "https://alight-motion.bendingspoons.com",
+          "path": "/v2/link/download",
+          "priority": "high"
+        },
+        {
+          "base": "https://alightmotionandroid.oracle.bendingspoonsapps.com",
+          "path": "/v2/project/download",
+          "priority": "medium"
+        }
+      ]
+    }
+  },
+
+  "routesLocalRuntime": {
+    "description": "Endpoint backend yang dipakai oleh deobf.js di runtime/preset.html. Harus disediakan oleh server Node.js.",
+    "endpoints": [
+      {
+        "id": "project-xml",
+        "method": "GET",
+        "path": "/api/project-xml",
+        "query": { "url": "string (share URL)" },
+        "response": {
+          "xml": "string",
+          "xmlName": "string",
+          "media": "array",
+          "projects": "array"
+        }
+      },
+      {
+        "id": "project-media",
+        "method": "GET",
+        "path": "/api/project-media",
+        "query": { "pkg": "string", "file": "string" }
+      },
+      {
+        "id": "tiktok",
+        "method": "GET",
+        "path": "/api/tiktok",
+        "query": { "url": "string" },
+        "response": { "media": "string" }
+      },
+      {
+        "id": "drive-xml",
+        "method": "GET",
+        "path": "/api/drive-xml",
+        "query": { "url": "string" },
+        "response": { "xml": "string", "name": "string" }
+      },
+      {
+        "id": "drive-media",
+        "method": "GET",
+        "path": "/api/drive-media",
+        "query": {
+          "url": "string",
+          "kind": "audio|video|image",
+          "start": "int",
+          "end": "int"
+        }
+      },
+      {
+        "id": "presets",
+        "method": "GET",
+        "path": "/api/presets",
+        "response": { "images": "array" }
+      },
+      {
+        "id": "effect-xml",
+        "method": "GET",
+        "path": "/api/effect-xml",
+        "query": { "id": "string" },
+        "response": "application/xml",
+        "header": "X-Effect-File: <id>.xml"
+      },
+      {
+        "id": "effect-bin",
+        "method": "GET",
+        "path": "/api/effect-bin",
+        "query": { "id": "string" },
+        "response": "binary",
+        "header": "X-Effect-File: <id>.bin"
+      }
+    ]
+  },
+
+  "staticAssets": {
+    "description": "Asset default yang dipakai runtime.",
+    "items": [
+      {
+        "path": "../preset/Beraksi.xml",
+        "type": "application/xml",
+        "role": "Default preset XML"
+      },
+      {
+        "path": "../preset/Beraksi.mp3",
+        "type": "audio/mpeg",
+        "role": "Default audio"
+      },
+      {
+        "path": "../preset/",
+        "type": "directory",
+        "role": "Folder gambar preset"
+      },
+      {
+        "path": "../effects/",
+        "type": "directory",
+        "role": "Folder efek shader"
+      },
+      {
+        "path": "./effect-index.json",
+        "type": "application/json",
+        "role": "Index efek"
+      },
+      {
+        "path": "../runtime/preset.html",
+        "type": "text/html",
+        "role": "Runtime UI"
+      }
+    ]
+  },
+
+  "externalCdn": [
+    {
+      "url": "https://cdn.jsdelivr.net/npm/mediabunny@1.55.6/+esm",
+      "role": "MP4 muxer (ESM)"
+    },
+    {
+      "url": "https://fonts.googleapis.com/css2?family=<name>:wght@400;500;700&display=swap",
+      "role": "Google Fonts CSS"
+    },
+    {
+      "url": "https://fonts.gstatic.com/s/<font>/...",
+      "role": "Google Fonts CDN"
+    }
+  ],
+
+  "firebase": {
+    "storage": "https://firebasestorage.googleapis.com/v0",
+    "remoteConfig": "https://firebaseremoteconfig.googleapis.com/v1/projects/%s/namespaces/%s:fetch",
+    "appCheck": "https://firebaseappcheck.googleapis.com/v1/projects/%s/apps/%s:exchangePlayIntegrityToken?key=%s",
+    "analytics": [
+      "https://app-measurement.com/a",
+      "https://app-measurement.com/s/d"
+    ]
+  },
+
+  "queryParams": {
+    "alight": {
+      "description": "Query param untuk auto-load preset dari share link.",
+      "example": "?alight=<id|url>",
+      "handler": "runtime/preset.html"
+    }
+  },
+
+  "customProtocols": {
+    "am": "Asset manager",
+    "amproj": "Project",
+    "amres": "Resource",
+    "amv": "Video"
+  },
+
+  "headers": {
+    "default": {
+      "User-Agent": "AlightMotion/5.0.0 (Android)",
+      "Content-Type": "application/json",
+      "Accept": "application/json",
+      "X-App-Build": "1028417",
+      "X-Platform": "android",
+      "X-Device-Id": "<16-char hex>"
+    }
+  },
+
+  "requestModels": {
+    "AlightLinkMetadataRequest": {
+      "fields": {
+        "uid": "string",
+        "pid": "string",
+        "platform": "string",
+        "appBuild": "integer",
+        "acctTestMode": "string"
+      }
+    },
+    "AlightLinkMetadataResponse": {
+      "fields": {
+        "result": "string",
+        "info": "object",
+        "download": "string",
+        "liteVersionAvailable": "boolean",
+        "freeUserMaxDownloadSize": "integer",
+        "message": "string",
+        "errorCode": "string",
+        "errorMessage": "string"
+      }
+    },
+    "RequestProjectDownloadRequest": {
+      "fields": {
+        "uid": "string",
+        "pid": "string",
+        "platform": "string",
+        "appBuild": "integer",
+        "liteVersion": "boolean",
+        "acctTestMode": "string"
+      }
+    },
+    "RequestProjectDownloadResponse": {
+      "fields": {
+        "result": "string",
+        "downloadUri": "string"
+      }
+    }
+  },
+
+  "mediaTypeRegex": {
+    "video": "\\.(mp4|webm|mov|m4v|ogv)$",
+    "audio": "\\.(mp3|m4a|aac|wav|ogg|opus)$",
+    "image": "\\.(jpe?g|png|webp|gif|bmp|avif)$",
+    "xml": "\\.xml$",
+    "customProtocol": "^(?:am|amproj|amres|amv):"
+  },
+
+  "codecs": {
+    "video": [
+      { "id": "h264", "codec": "avc1.640033" },
+      { "id": "h264", "codec": "avc1.64002A" },
+      { "id": "h264", "codec": "avc1.4D0028" },
+      { "id": "h264", "codec": "avc1.42E01F" }
+    ],
+    "audio": {
+      "codec": "mp4a.40.2",
+      "sampleRate": 48000,
+      "channels": [1, 2],
+      "bitrate": 128000
+    },
+    "container": {
+      "webcodecs": "video/mp4",
+      "mediaRecorder": [
+        "video/webm;codecs=vp9",
+        "video/webm;codecs=vp8",
+        "video/webm"
+      ]
+    }
+  },
+
+  "bruteForcePaths": {
+    "metadata": [
+      "/v1/link/metadata", "/v2/link/metadata", "/v3/link/metadata", "/v4/link/metadata",
+      "/v1/project/metadata", "/v2/project/metadata", "/v3/project/metadata",
+      "/v1/projects/metadata", "/v2/projects/metadata", "/v3/projects/metadata",
+      "/v1/share/metadata", "/v2/share/metadata", "/v3/share/metadata",
+      "/v1/import/metadata", "/v2/import/metadata", "/v3/import/metadata",
+      "/v1/preset/metadata", "/v2/preset/metadata", "/v3/preset/metadata",
+      "/v1/template/metadata", "/v2/template/metadata", "/v3/template/metadata",
+      "/v1/deeplink/metadata", "/v2/deeplink/metadata", "/v3/deeplink/metadata"
+    ],
+    "download": [
+      "/v1/link/download", "/v2/link/download", "/v3/link/download", "/v4/link/download",
+      "/v1/project/download", "/v2/project/download", "/v3/project/download",
+      "/v1/projects/download", "/v2/projects/download", "/v3/projects/download",
+      "/v1/import/download", "/v2/import/download", "/v3/import/download",
+      "/v1/preset/download", "/v2/preset/download", "/v3/preset/download",
+      "/v1/template/download", "/v2/template/download", "/v3/template/download"
+    ],
+    "share": [
+      "/am/share/u", "/am/share/u/", "/am/share",
+      "/am/share/v", "/am/share/v/",
+      "/am/share/project", "/am/project", "/am/project/",
+      "/v1/share/resolve", "/v2/share/resolve", "/v3/share/resolve",
+      "/v1/link/resolve", "/v2/link/resolve", "/v3/link/resolve"
+    ]
+  },
+
+  "nextSteps": [
+    {
+      "priority": 1,
+      "task": "Brute force endpoint metadata + download",
+      "command": "python3 brute_endpoint.py",
+      "notes": "Cari endpoint yang return 400 INVALID_PID (artinya endpoint benar)."
+    },
+    {
+      "priority": 2,
+      "task": "Cek alight.link redirect",
+      "command": "curl -sIL 'https://alight.link/<id>'",
+      "notes": "Lihat ke mana redirect — biasanya ke alightcreative.com/am/share/u/<pid>."
+    },
+    {
+      "priority": 3,
+      "task": "MITM proxy untuk capture endpoint asli",
+      "command": "mitmweb --listen-port 8080",
+      "notes": "Clear app data AM → buka link preset baru → capture."
+    },
+    {
+      "priority": 4,
+      "task": "Frida hook OkHttp / Retrofit",
+      "command": "frida -U -f com.alightcreative.motion -l frida-hook-am.js",
+      "notes": "Lihat request real-time tanpa MITM."
+    },
+    {
+      "priority": 5,
+      "task": "Cari Retrofit interface di JADX",
+      "command": "grep -rln 'retrofit2.http' jadx-src/sources/",
+      "notes": "Lihat @POST annotation + return type."
+    }
+  ]
+}

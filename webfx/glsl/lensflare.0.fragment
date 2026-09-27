@@ -1,0 +1,139 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform vec2 position;
+uniform float radius;
+uniform float brightness;
+uniform float shine;
+uniform vec4 color;
+uniform float pointCount;
+uniform float alpha;
+uniform int blendMode;
+
+
+
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+
+        float circle(vec2 st, vec2 center, float r) {
+            return smoothstep(r,r-.001,length(st-center));
+        }
+
+        float smoothCircle(vec2 st, vec2 center, float r, float innerRad) {
+            return smoothstep(r,innerRad,length(st-center));
+        }
+
+        float bokeh(vec2 st, vec2 center, float r, float feather) {
+            return smoothstep(r,r*(1.-feather),length(st-center)) - smoothstep(r*(1.-feather),r*(1.-feather*2.),length(st-center)) + smoothstep(r,r*(1.-feather*2.),length(st-center))*1.608;
+        }
+
+        float ring(vec2 st, vec2 center, float r, float feather) {
+            float dist = length(st-center);
+            return smoothstep(r,r*(1.-feather),length(st-center)) - smoothstep(r*(1.-feather),r*(1.-feather*2.),dist) + smoothstep(0.,r,dist)*0.880*smoothstep(r+feather/2.,r,dist);
+        }
+
+
+        float star(vec2 st, vec2 center, float r, float insideRadiusScale, float points) {
+            vec2 dc = st-center;
+            float ir = r*insideRadiusScale;
+            float a = (atan(dc.x,dc.y)+3.14159)/2.;
+            float p = smoothstep(r,ir,length(dc));
+
+            a = smoothstep(p,ir,abs(sin(a*points)));
+            return clamp((p*1.264+a)*p*p,0.,1.);
+        }
+
+        float combine(float p, float q) {
+            return p+q;
+        }
+
+        float lensFlare(vec2 st, vec2 center, vec2 offset, float r, float shine, float points) {
+            vec2 pos = offset;
+            vec2 offs = pos-center;
+            vec2 opp = center-offs;
+            float dist = length(pos-center);
+            float exposure = (1.-dist)+.5 * shine;
+            exposure = 0.2 + (exposure*0.8);
+
+            float p = 0.;
+
+            p = combine(p,bokeh(st,mix(pos,opp,1.102),0.121*r,0.258)*0.116);
+
+            p = combine(p,bokeh(st,opp,0.092*r,0.268)*0.116);
+
+            p = combine(p,bokeh(st,mix(pos,opp,0.892),0.132*r,0.268)*0.116);
+
+            p = combine(p,bokeh(st,mix(pos,opp,0.740),0.076*r,0.148)*0.116);
+
+            p = combine(p,star(st,mix(pos,opp,0.820),0.164*r,-0.620+exposure*0.1,points)*1.000*exposure);
+            p = combine(p,star(st,mix(pos,opp,0.820),0.164*r,-0.620+exposure*0.1,points*2.)*0.440*exposure);
+
+            p = combine(p,bokeh(st,mix(pos,opp,0.428),0.044*r,0.148)*0.116);
+            p = combine(p,bokeh(st,mix(pos,opp,0.484),0.028*r,0.268)*0.116);
+            p = combine(p,bokeh(st,mix(pos,opp,0.564),0.020*r,0.268)*0.116);
+
+            p = combine(p,bokeh(st,mix(pos,opp,0.276),0.020*r,0.268)*0.116);
+            p = combine(p,bokeh(st,mix(pos,opp,0.204),0.076*r,0.228)*0.116);
+
+            p = combine(p,star(st,pos,0.468*r,-0.236+exposure*0.1,points)*5.032*exposure);
+            p = combine(p,ring(st,pos+vec2(0.000,0.000),0.534*exposure*r,0.052)*0.296);
+            p = combine(p,smoothCircle(st,pos,0.12*r,0.05*r)*max(0.2,0.1+exposure));
+
+            return p;
+        }
+
+        void main() {
+            vec4 texColor = texture2DCv(inputImg,acScreenNorm);
+            vec2 st = acLayerNorm;
+            st.y = 1. - st.y;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            float p = lensFlare(st,vec2(0.,0.),position/1000.0,radius,shine*0.995,pointCount);
+
+            vec4 adjColor = clamp(vec4(mix(color.rgb+vec3(0.15,0.15,0.15),vec3(1.),0.05)*p*brightness,1.),0.,1.)*p;
+
+            vec4 result;
+            if( blendMode==1 ) {
+                result = vec4((texColor.rgb/texColor.a)*adjColor.rgb,1.0) * texColor.a;
+            } else if( blendMode==2 ) {
+                result = vec4( 1.-((1.-(texColor.rgb/texColor.a))*(1.-adjColor.rgb)),1.0) * texColor.a;
+            } else {
+                result = adjColor*texColor.a;
+                result = texColor*(1.-result.a) + result;
+            }
+            gl_FragColor = mix(texColor,clamp(result,0.,1.),alpha);
+        }
+
+    

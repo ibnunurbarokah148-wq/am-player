@@ -1,0 +1,164 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform sampler2D xDistBuf; uniform vec2 __sz_xDistBuf;
+uniform sampler2D comp; uniform vec2 __sz_comp;
+uniform float thickness;
+uniform float feather;
+uniform vec4 excludeColor1;
+uniform float threshold1;
+uniform vec4 excludeColor2;
+uniform float threshold2;
+uniform vec4 excludeColor3;
+uniform float threshold3;
+
+
+
+        #define MULTISAMPLE 1.0
+        #define MAX_RADIUS 16383.0
+
+        vec2 encodeFloat(float v) {
+            highp vec2 enc = fract(vec2(1.0, 255.0)*v);
+            enc.x -= enc.y/255.0;
+            return enc;
+        }
+
+        float decodeFloat(vec2 v) {
+            return dot(v,vec2(1.0,1.0/255.0));
+        }
+
+        void main() {
+
+            //float radius=max(max(innerBorderSize,outerBorderSize),centerBorderSize)*MULTISAMPLE;
+            float radius=thickness*MULTISAMPLE;
+
+            int from = -max(1,int(radius));
+            int to = max(1,int(radius));
+
+            // Size of a pixel
+            vec2 imgSize = getTexSize(__sz_inputImg);
+            float px = (1.0/imgSize.x);
+            float py = (1.0/imgSize.y);
+
+            if( acPass==0 ) {
+
+                // Calculate distance on X-axis and encode in a texture
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float x = float(i);
+
+                    vec4 sample = texture2DCv(inputImg,vec2(acScreenNorm.s + x*(px/MULTISAMPLE),acScreenNorm.t));
+                    float xdistOut = sample.a > 0.0 ? abs(x) : radius*2.0;
+                    float xdistIn = sample.a < 0.003 ? abs(x) : radius*2.0;
+                    nearestOutside = min(nearestOutside,xdistOut);
+                    nearestInside = min(nearestInside,xdistIn);
+
+                }
+
+                gl_FragColor = vec4(encodeFloat(nearestOutside/MAX_RADIUS),encodeFloat(nearestInside/MAX_RADIUS));
+
+            } else {
+
+                // Final pass
+
+                float nearestOutside = MAX_RADIUS;
+                float nearestInside = MAX_RADIUS;
+
+                for(int i=from; i<to; i++ ) {
+
+                    float y = float(i);
+
+                    vec4 sample = texture2DCv(xDistBuf,vec2(acScreenNorm.s,acScreenNorm.t + y*(py/MULTISAMPLE)));
+
+                    float xdistOut = decodeFloat(sample.rg) * MAX_RADIUS;
+                    float xdistIn = decodeFloat(sample.ba) * MAX_RADIUS;
+                    float ydist = abs(y);
+                    float distOut = length(vec2(xdistOut,ydist));
+                    float distIn = length(vec2(xdistIn,ydist));
+
+                    nearestInside = min(nearestInside,distIn);
+                    nearestOutside = min(nearestOutside,distOut);
+                }
+
+                float nearestMid = max(nearestInside, nearestOutside);
+
+                vec4 original = texture2DCv(inputImg,acScreenNorm.st);
+
+                //vec4 outColor = outerBorderSize<0.003 ? vec4(0.0)  : mix(outerBorderColor,  vec4(0.0), smoothstep(1.0-1.5/outerBorderSize,1.0,nearestOutside/(outerBorderSize/MULTISAMPLE)));
+                //vec4 inColor = innerBorderSize<0.003 ? vec4(0.0)   : mix(innerBorderColor,  vec4(0.0), smoothstep(1.0-1.5/innerBorderSize,1.0,nearestInside/(innerBorderSize/MULTISAMPLE))) * original.a;
+                //vec4 midColor = centerBorderSize<0.003 ? vec4(0.0) : mix(centerBorderColor, vec4(0.0), smoothstep(1.0-1.5/centerBorderSize,1.0,nearestMid/(centerBorderSize/MULTISAMPLE)));
+
+                float inAlpha = thickness > 0.0 ? smoothstep((1.0-1.5/thickness)*(1.0-feather),1.0,nearestInside/(thickness/MULTISAMPLE)): 1.0;
+                //if(invert) {
+                    inAlpha = 1. - inAlpha;
+                //}
+                //vec4 result = outColor;
+                //result = original + result*(1.0-original.a);
+                //result = inColor + result*(1.0-inColor.a);
+                //result = midColor + result*(1.0-midColor.a);
+                
+                mat3 rgb2yuv = mat3(
+                     0.299,     0.587,    0.114,
+                    -0.14713,  -0.28886,  0.436,
+                     0.615,    -0.51499, -0.10001
+                );
+                mat3 yuv2rgb = mat3(
+                    1.0,  0.0,      1.13983,
+                    1.0, -0.39465, -0.58060,
+                    1.0,  2.03211,  0.0
+                );
+
+                vec4 bg = texture2DCv(comp,acScreenNorm);
+                vec3 bgyuv = bg.rgb * rgb2yuv;
+                vec3 fgyuv = original.rgb * rgb2yuv;
+                
+                vec3 exclyuv1 = excludeColor1.rgb * rgb2yuv;
+                float tt1 = smoothstep(0.0,threshold1,length(exclyuv1.yz - fgyuv.yz));
+                
+                vec3 exclyuv2 = excludeColor2.rgb * rgb2yuv;
+                float tt2 = smoothstep(0.0,threshold2,length(exclyuv2.yz - fgyuv.yz));
+
+                vec3 exclyuv3 = excludeColor3.rgb * rgb2yuv;
+                float tt3 = smoothstep(0.0,threshold3,length(exclyuv3.yz - fgyuv.yz));
+
+                vec3 adj = vec3(fgyuv.x, mix(fgyuv.yz,bgyuv.yz,inAlpha * original.a * tt1 * tt2 * tt3)) * yuv2rgb;
+                
+                gl_FragColor = vec4(adj,original.a);
+            }
+        }
+
+    

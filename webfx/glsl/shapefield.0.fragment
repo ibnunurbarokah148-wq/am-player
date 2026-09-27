@@ -1,0 +1,231 @@
+precision highp float;
+precision highp int;
+
+varying vec2 acScreenNorm;   /* uv, y-up (GL convention) — AM: normalized screen coord */
+#define   acLayerNorm        acScreenNorm
+
+uniform vec2  acScreenSize;       /* render target px */
+uniform vec2  acLayerSize;        /* layer px */
+uniform vec2  acLayerCenter;      /* layer center px */
+uniform vec2  acLayerCenterNorm;  /* layer center, normalized */
+uniform vec2  acLayerPivot;       /* pivot offset px */
+uniform vec2  acLayerSizeNorm;    /* layer size / screen size */
+uniform vec2  acPreviewSize;      /* preview canvas px */
+uniform vec2  acProjectSize;      /* project px */
+uniform vec2  acVelocity;         /* per-frame translation */
+uniform float acTime;             /* seconds */
+uniform float acAngularVelocity;
+uniform float acScaleVelocity;
+uniform mat3  acScreenToLayer;
+uniform mat3  acLayerToScreen;
+uniform mat4  acLTS;
+uniform bool  acShowGuides;
+uniform int   acPass;
+
+vec4  texture2DCv(sampler2D s, vec2 uv) { return texture2D(s, uv); }
+vec2  getTexSize(vec2 sz)             { return sz; }
+float saturate(float v)               { return clamp(v, 0.0, 1.0); }
+vec2  saturate(vec2 v)                { return clamp(v, 0.0, 1.0); }
+vec3  saturate(vec3 v)                { return clamp(v, 0.0, 1.0); }
+vec4  saturate(vec4 v)                { return clamp(v, 0.0, 1.0); }
+
+
+uniform sampler2D inputImg; uniform vec2 __sz_inputImg;
+uniform vec3 pos;
+uniform float density;
+uniform float evolution;
+uniform float seed;
+uniform float scale;
+uniform float shapeSize;
+uniform float shapeAngle;
+uniform float sizeVariance;
+uniform float angleVariance;
+uniform float layerCount;
+uniform float fade;
+uniform float alpha;
+uniform float slack;
+uniform int blendMode;
+uniform int coloring;
+uniform vec4 color1;
+uniform vec4 color2;
+uniform vec4 color3;
+uniform bool lockLuminance;
+uniform bool lockSaturation;
+uniform bool interpHue;
+
+
+
+        float rand2(vec2 co){
+            return fract(sin(dot(co.xy ,vec2(12.9898,78.233))) * 43758.5453);
+        }
+
+        float rand3 (vec3 v) {
+            return fract(sin(dot(v,vec3(12.9898,78.233,193.71)))*43758.5453123);
+        }
+
+        float rand4 (vec4 v) {
+            return fract(sin(dot(v,vec4(12.9898,78.233,193.71,397.318)))*43758.5453123);
+        }
+
+        vec2 randVec2(vec3 v) {
+            return vec2( rand4(vec4(v,5.124)), rand4(vec4(v,3.0)));
+        }
+
+        vec3 randVec3(vec3 v) {
+            return vec3( rand4(vec4(v,5.124)), rand4(vec4(v,7.23464)), rand4(vec4(v,3.0)));
+        }
+        
+        vec2 l2s( vec2 v ) {
+            return (vec4(v,0.,1.)*acLayerToScreen).xy;
+        }
+        
+        mat2 rot(float a) {
+            float c = cos(a);
+            float s = sin(a);
+            return mat2(
+                c, -s,
+                s, c
+            );
+        }
+        
+        vec3 hsv2rgb(vec3 c)
+        {
+            vec4 K = vec4(1.0, 2.0 / 3.0, 1.0 / 3.0, 3.0);
+            vec3 p = abs(fract(c.xxx + K.xyz) * 6.0 - K.www);
+            return c.z * mix(K.xxx, clamp(p - K.xxx, 0.0, 1.0), c.y);
+        }
+
+        vec3 rgb2hsv(vec3 c)
+        {
+            vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);
+            vec4 p = mix(vec4(c.bg, K.wz), vec4(c.gb, K.xy), step(c.b, c.g));
+            vec4 q = mix(vec4(p.xyw, c.r), vec4(c.r, p.yzx), step(p.x, c.r));
+
+            float d = q.x - min(q.w, q.y);
+            float e = 1.0e-10;
+            return vec3(abs(q.z + (q.w - q.y) / (6.0 * d + e)), d / (q.x + e), q.x);
+        }
+        
+        vec4 mixColors(vec4 a, vec4 b, float t) {
+            vec4 result;
+            if( interpHue ) {
+                result = vec4(hsv2rgb(mix(rgb2hsv(a.rgb),rgb2hsv(b.rgb),t)),mix(a.a,b.a,t));
+            } else {
+                result = mix(a,b,t);
+            }
+            return result;
+        }
+        
+        vec4 getColor(vec3 id, float layerDepth) {
+            vec4 result;
+            if( coloring==0 ) {
+                result = vec4(0.);
+            } else if( coloring==1 ) {  // Solid
+                result = color1;
+            } else if( coloring==2 ) {  // Random 1-color
+                result = color1 * rand4(vec4(id,0.1974));
+            } else if( coloring==3 ) {  // Random 2-color
+                result = mixColors(color1,color2,rand4(vec4(id,0.1974)));
+            } else if( coloring==4 ) {  // Random 3-color
+                vec2 rr = randVec2(id);
+                result = mixColors(mixColors(color1,color2,rr.x),color3,rr.y);
+            } else if( coloring==5 ) {  // Depth 1-color
+                result = color1 * layerDepth;
+            } else if( coloring==6 ) {  // Depth 2-color
+                result = mixColors(color1,color2,layerDepth);
+            } else if( coloring==7 ) {  // Depth 3-color
+                result = layerDepth < 0.5 ? mixColors(color1,color2,layerDepth*2.) : mixColors(color2,color3,(layerDepth-0.5)*2.);
+            } else if( coloring==8 ) {  // Depth+Random
+                result = mixColors(color3,mixColors(color1,color2,rand4(vec4(id,0.1974))),layerDepth);
+            } else {
+                result = vec4(0.);
+            }
+            return result;
+        }
+
+        vec4 shapeGrid(vec2 st, float layer, float layerDepth) {
+            st *= 10.;
+            vec2 uv = fract(st);
+            vec3 id = vec3(floor(st),layer);
+            float size = sizeVariance < 0.0001 ? shapeSize : min(shapeSize, shapeSize * (1.+((rand4(vec4(id,0.351))-0.5)*sizeVariance)));
+            float angle = angleVariance < 0.0001 ? 0. : ((rand4(vec4(id,0.2793))-0.5)*angleVariance*12.56636);
+            float rr = rand3(id);
+            size *= smoothstep(rr,rr+0.008,density);
+            if( size < 0.00001 ) return vec4(0.);
+            uv -= 0.5;
+            uv *= acLayerSize.x > acLayerSize.y ? vec2(1.,acLayerSize.x/acLayerSize.y) : vec2(acLayerSize.y/acLayerSize.x,1.);
+            uv /= size;
+            float maxDisplace = (1./size - 1.);
+            vec2 displace;
+            if( abs(evolution) > 0.001 ) {
+                displace = mix(randVec2(id+floor(evolution)),randVec2(id+floor(evolution+1.)),fract(evolution));
+            } else {
+                displace = randVec2(id);
+            }
+            uv += clamp((displace-0.5)*max(1.0,maxDisplace)*slack,-maxDisplace,maxDisplace);
+            uv *= rot(angle + (shapeAngle * 0.0174532925));
+            uv += 0.5;
+            uv.y = 1. - uv.y;
+            vec4 texColor = texture2DCv(inputImg,l2s(uv));
+            vec4 blendColor = getColor(id,layerDepth);
+            
+            vec4 result;
+            if(lockLuminance || lockSaturation) {
+                vec3 texHsv = rgb2hsv(texColor.a <= 0.0 ? vec3(0.) : (texColor.rgb/texColor.a));
+                vec3 blendHsv = rgb2hsv(blendColor.a <= 0.0 ? vec3(0.) : (blendColor.rgb/blendColor.a));
+                if( lockLuminance ) blendHsv.z = texHsv.z;
+                if( lockSaturation ) blendHsv.y = texHsv.y;
+                result = vec4(hsv2rgb(mix(texHsv, blendHsv, blendColor.a)),1.) * texColor.a;
+            } else {
+                result = vec4(mix(texColor.a <= 0.0 ? vec3(0.) : (texColor.rgb/texColor.a), blendColor.a <= 0.0 ? vec3(0.) : (blendColor.rgb/blendColor.a), blendColor.a),1.) * texColor.a;
+            }
+            return result;
+            
+            //return texture2DCv(inputImg,l2s(uv)) * step(rand3(id),density);
+        }
+        
+        void main() {
+            //vec4 texColor = texture2DCv(inputImg,acScreenNorm);
+            
+            //vec2 st = (acScreenNorm - 0.5) * vec2(1., -1.);
+            vec2 st = acLayerNorm;
+            st.y = 1. - st.y;
+            st -= 0.5;
+            st.x *= acLayerSize.x/acLayerSize.y;
+
+            st /= scale*6.;
+            
+            vec2 parallax = (pos.xy / 1000.) + 25.35;
+            float depth = pos.z / 100.;
+
+            vec4 result = vec4(0.);
+
+            float f = fract(depth);
+            float layer = floor(depth);
+            float filteredSeed = seed/5.0;
+            
+            for( float i=layerCount-1.; i>=0.; i -= 1. ) {
+                vec2 uv = st;
+                uv *= ((1.+i)-f)/9.;
+                uv += parallax;
+                float layerDepth = smoothstep(layerCount,layerCount*(0.9999-fade),(i+1.)-f);
+                vec4 color = shapeGrid(uv, layer+i+filteredSeed, layerDepth)*alpha*layerDepth;
+                
+                if( blendMode==1 ) {
+                    vec3 fg = color.a<0.0001 ? vec3(0.) : color.rgb/color.a;
+                    vec3 bg = result.a<0.0001 ? vec3(1.) : result.rgb/result.a;
+                    result = result * (1.-color.a) + vec4(fg*bg,1.0)*color.a;
+                } else if( blendMode==2 ) {
+                    vec3 fg = color.a<0.0001 ? vec3(1.) : color.rgb/color.a;
+                    vec3 bg = result.a<0.0001 ? vec3(0.) : result.rgb/result.a;
+                    result = result * (1.-color.a) + vec4(1.-(1.-fg)*(1.-bg),1.0)*color.a;
+                } else {
+                    result = result * (1.-color.a) + color;
+                }
+
+            }
+            
+            gl_FragColor = result;
+        }
+
+    
