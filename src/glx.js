@@ -103,7 +103,8 @@
     this.programs = new Map();     // srcUrl -> {prog, uniforms}
     this.targets  = new Map();     // name -> {tex, fbo, w, h}
     this.textures = new Map();     // url -> texture (assets)
-    this.fx       = null;          // effects.json
+     this.fx       = null;          // effects.json
+     this.assetBase = '/webfx/';
     this.byId     = new Map();
     this.glslSrc  = new Map();
     this.warnings = [];
@@ -117,6 +118,8 @@
   Engine.prototype.load = function (jsonUrl) {
     var self = this;
     jsonUrl = jsonUrl || '/webfx/effects.json';
+    var slash = jsonUrl.lastIndexOf('/');
+    this.assetBase = (slash >= 0 ? jsonUrl.slice(0, slash + 1) : '/');
     return fetch(jsonUrl).then(function (r) {
       if (!r.ok) throw new Error('gagal memuat ' + jsonUrl + ' (' + r.status + ')');
       return r.json();
@@ -149,8 +152,9 @@
   Engine.prototype.getGlsl = function (path) {
     var self = this;
     if (this.glslSrc.has(path)) return Promise.resolve(this.glslSrc.get(path));
-    return fetch('/webfx/' + path).then(function (r) {
-      if (!r.ok) throw new Error('gagal memuat ' + path + ' (' + r.status + ')');
+     var src = /^https?:\/\//i.test(path) || path.charAt(0) === '/' ? path : self.assetBase + path;
+     return fetch(src).then(function (r) {
+         if (!r.ok) throw new Error('gagal memuat ' + src + ' (' + r.status + ')');
       return r.text();
     }).then(function (t) {
       if (self.precision !== 'highp')

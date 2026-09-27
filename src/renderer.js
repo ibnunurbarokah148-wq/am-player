@@ -209,7 +209,15 @@ function value(parent,name,t,def){
   const av=vec(a.getAttribute('v')),bv=vec(b.getAttribute('v'));
   return av.map((x,i)=>x+(bv[i]-x)*q).join(',')
 }
-function tr(l,t){const x=[...l.children].find(e=>e.tagName==='transform');return{pos:vec(value(x,'location',t,'0,0')),scale:vec(value(x,'scale',t,'1,1')),rot:num(value(x,'rotation',t,'0')),opacity:num(value(x,'opacity',t,'1'))}}
+function tr(l,t){
+  const start=num(attr(l,'startTime',0)),end=num(attr(l,'endTime',scene?.duration||0));
+  const model=scene?.editorModel, id=attr(l,'id','');
+  if(model&&window.AMEditor?.evaluateSceneTransform&&id){
+    const q=window.AMEditor.evaluateSceneTransform(model,id,start+clamp(t,0,1)*Math.max(0,end-start));
+    return{pos:q.pos,scale:q.scale,rot:q.rot,opacity:q.opacity,z:q.z||0};
+  }
+  const x=[...l.children].find(e=>e.tagName==='transform');return{pos:vec(value(x,'location',t,'0,0')),scale:vec(value(x,'scale',t,'1,1')),rot:num(value(x,'rotation',t,'0')),opacity:num(value(x,'opacity',t,'1')),z:0}
+}
 let selectedLayer=-1, editorHistory=null;
 function mutate(label,apply){if(!scene)return;const before=new XMLSerializer().serializeToString(scene.root);apply();const after=new XMLSerializer().serializeToString(scene.root);if(before===after)return;const command={label,do:()=>restoreXml(after),undo:()=>restoreXml(before)};if(editorHistory)editorHistory.execute(command);else command.do();invalidateScene();updateHistoryButtons()}
 function restoreXml(xml){const d=new DOMParser().parseFromString(xml,'application/xml');if(d.querySelector('parsererror'))throw Error('Gagal memulihkan scene');const oldMedia=mediaSlots.map(s=>s.file);scene.root=d.documentElement;scene.layers=flatten(scene.root);scene.editorModel=window.AMEditor?.createSceneModel?window.AMEditor.createSceneModel(window.AMEditor.parseSceneXml(xml).root):null;selectedLayer=Math.min(selectedLayer,scene.layers.length-1);mediaSlots=scene.layers.filter(x=>x.getAttribute('fillVideo')||x.getAttribute('fillImage')).map((layer,i)=>({layer,name:attr(layer,'label',`Media ${i+1}`),file:oldMedia[i]||null}));renderUi();renderEffects();renderInspector();draw(offset);updateHistoryButtons()}

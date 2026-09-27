@@ -99,7 +99,7 @@ function cubicBezier(x1, y1, x2, y2, t) {
   return bez(u, y1, y2);
 }
 function easeValue(spec, t) {
-  const parts = String(spec || '').trim().split(/\\s+/);
+  const parts = String(spec || '').trim().split(/\s+/);
   const i = parts[0] === 'local' ? 1 : 0;
   if (parts[i] === 'cubicBezier' && parts.length >= i + 5) {
     const n = parts.slice(i + 1, i + 5).map(Number);
@@ -122,14 +122,33 @@ const identity = () => [1, 0, 0, 1, 0, 0];
 const multiply = (a, b) => [a[0]*b[0]+a[2]*b[1], a[1]*b[0]+a[3]*b[1], a[0]*b[2]+a[2]*b[3], a[1]*b[2]+a[3]*b[3], a[0]*b[4]+a[2]*b[5]+a[4], a[1]*b[4]+a[3]*b[5]+a[5]];
 function localMatrix(layer, timeMs) {
   const p = layer.properties || {}, value = name => evaluateKeyframes(p[name] || {}, timeMs, layer.startTime, layer.endTime);
-  const pos = value('location') || [0, 0], scale = value('scale') || [1, 1], rotation = finite(value('rotation')) * Math.PI / 180, c = Math.cos(rotation), s = Math.sin(rotation);
-  return [c * finite(scale[0], 1), s * finite(scale[0], 1), -s * finite(scale[1], 1), c * finite(scale[1], 1), finite(pos[0]), finite(pos[1])];
+  const pos = value('location') || [0, 0], pivot = value('pivot') || [0, 0], scale = value('scale') || [1, 1], skew = value('skew') || [0, 0];
+  const rotation = finite(value('rotation')) * Math.PI / 180, c = Math.cos(rotation), s = Math.sin(rotation);
+  const sx = finite(scale[0], 1), sy = finite(scale[1], 1);
+  const kx = Math.tan(finite(skew[0]) * Math.PI / 180), ky = Math.tan(finite(skew[1]) * Math.PI / 180);
+  const base = [c * sx + (-s * sy) * ky, s * sx + c * sy * ky, c * sx * kx - s * sy, s * sx * kx + c * sy, finite(pos[0]), finite(pos[1])];
+  const px = finite(pivot[0]), py = finite(pivot[1]);
+  return multiply(multiply([1, 0, 0, 1, px, py], base), [1, 0, 0, 1, -px, -py]);
 }
 export function resolveParentTransform(layer, layers, timeMs, seen = new Set()) {
   if (!layer || seen.has(layer.id)) return identity();
   seen.add(layer.id); const local = localMatrix(layer, timeMs);
   const parent = layers.find(item => item.id && item.id === layer.parentId);
   return parent ? multiply(resolveParentTransform(parent, layers, timeMs, seen), local) : local;
+}
+export function evaluateSceneTransform(scene, id, timeMs) {
+  const layer = scene?.layers?.find(item => String(item.id) === String(id));
+  if (!layer) return { pos: [0, 0], scale: [1, 1], rot: 0, opacity: 1, z: 0, matrix: identity() };
+  const matrix = resolveParentTransform(layer, scene.layers, timeMs);
+  const rot = Math.atan2(matrix[1], matrix[0]) * 180 / Math.PI;
+  return {
+    pos: [matrix[4], matrix[5]],
+    scale: [Math.hypot(matrix[0], matrix[1]), Math.hypot(matrix[2], matrix[3])],
+    rot,
+    opacity: finite(evaluateKeyframes(layer.properties.opacity || {}, timeMs, layer.startTime, layer.endTime), 1),
+    z: finite(evaluateKeyframes(layer.properties.location || {}, timeMs, layer.startTime, layer.endTime)?.[2]),
+    matrix
+  };
 }
 
 export class CommandHistory {
@@ -189,8 +208,8 @@ export function serializeScene(scene, serializer = globalThis.XMLSerializer, imp
   if (!serializer || !implementation) throw new Error('XMLSerializer dan DOM document diperlukan');
   const doc = implementation.createDocument('', '', null); const root = nodeToElement(scene.root, doc); doc.appendChild(root); return new serializer().serializeToString(doc);
 }
-export function createEditor() { return { history: new CommandHistory(), parse: parseSceneXml, evaluate: evaluateKeyframes, resolveParent: resolveParentTransform, serialize: serializeScene }; }
+export function createEditor() { return { history: new CommandHistory(), parse: parseSceneXml, evaluate: evaluateKeyframes, resolveParent: resolveParentTransform, evaluateTransform: evaluateSceneTransform, serialize: serializeScene }; }
 
-const api = { AM_TIME, parseSceneXml, createSceneModel, evaluateKeyframes, resolveParentTransform, CommandHistory, MutationCommand, commands, serializeScene, createEditor };
+const api = { AM_TIME, parseSceneXml, createSceneModel, evaluateKeyframes, resolveParentTransform, evaluateSceneTransform, CommandHistory, MutationCommand, commands, serializeScene, createEditor };
 if (typeof window !== 'undefined') window.AMEditor = Object.assign(window.AMEditor || {}, api, { createEditor });
 if (typeof globalThis !== 'undefined') globalThis.AMEditor = Object.assign(globalThis.AMEditor || {}, api);

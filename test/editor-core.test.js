@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import {
-  AM_TIME, createSceneModel, evaluateKeyframes, resolveParentTransform,
+  AM_TIME, createSceneModel, evaluateKeyframes, resolveParentTransform, evaluateSceneTransform,
   CommandHistory, MutationCommand, serializeScene
 } from '../src/editor-core.js';
 
@@ -23,6 +23,7 @@ const model = createSceneModel(root);
 assert.equal(model.layers.length, 2);
 assert.equal(evaluateKeyframes(model.layers[1].properties.opacity, 500, 0, 1000), 0.5);
 assert.deepEqual(resolveParentTransform(model.layers[1], model.layers, 500).slice(4), [15, 26]);
+assert.deepEqual(evaluateSceneTransform(model, 'child', 500).pos, [15, 26]);
 
 const target = { value: 1 }, history = new CommandHistory();
 history.execute(new MutationCommand(target, 'value', 2));

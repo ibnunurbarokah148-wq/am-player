@@ -38,6 +38,8 @@
   var layerCache = {};   // {w,h,st,tex} per indeks layer (raster tidak berubah antar frame)                        // offscreen WEBGL canvas (fix: #canvas sudah pegang context 2d)
   var progs = null;                     // {composite, builtin}
   var bgCache = null;
+  var previousTransforms = {};
+  var currentTransforms = {};
 
   var stats = {
     gl: false, layers: 0, fx: 0, native: 0, skipped: 0,
@@ -575,7 +577,7 @@
     ccTrace.push(s);
   }
 
-  function applyEffect(el, input, ext, timeSec, durSec, tt, compTex, n) {
+  function applyEffect(el, input, ext, timeSec, durSec, tt, compTex, n, motion) {
     var id = attr(el, 'id');
     var meta = engine.effect(id);
     if (!meta) { stats.missing++; trc(id, 'hilang', false, null); return {}; }
@@ -605,15 +607,18 @@
       var res = engine.renderSync(meta, {
         input: input, dst: dst, width: ext.w, height: ext.h,
         time: timeSec, comp: compTex, images: images, values: vals,
-        globals: {
+         globals: {
           acTime: timeSec,
           acLayerSize: [ext.w, ext.h],
           acLayerCenter: [ext.w / 2, ext.h / 2],
           acLayerCenterNorm: [0.5, 0.5],
           acLayerSizeNorm: [ext.w / scene.w, ext.h / scene.h],
           acProjectSize: [scene.w, scene.h],
-          acPreviewSize: [engine.canvas.width || scene.w, engine.canvas.height || scene.h]
-        }
+           acPreviewSize: [engine.canvas.width || scene.w, engine.canvas.height || scene.h]
+           ,acVelocity: motion ? motion.velocity : [0, 0]
+           ,acAngularVelocity: motion ? motion.angularVelocity : 0
+           ,acScaleVelocity: motion ? motion.scaleVelocity : 0
+         }
       });
       stats.fx++;
       trc(id, 'ok', usesComp, vals);
@@ -675,6 +680,7 @@
     gl.clear(gl.COLOR_BUFFER_BIT);
 
     var read = A, write = B;
+    currentTransforms = {};
     stats.layers = 0; stats.fx = 0; stats.native = 0;
     stats.skipped = 0; stats.missing = 0; stats.broken = 0;
     ccTrace = []; ccShort = []; stats.cc = '';
@@ -686,6 +692,15 @@
       if (timeMs < a || timeMs > b) continue;
       var tt = clamp((timeMs - a) / (b - a || 1), 0, 1);
       var q = tr(l, tt);
+      var layerId = attr(l, 'id', String(i));
+      var prev = previousTransforms[layerId] || { pos: q.pos, scale: q.scale, rot: q.rot };
+      var dt = Math.max(1 / Math.max(scene.fps || 30, 1), 1 / 240);
+      var motion = {
+        velocity: [(q.pos[0] - prev.pos[0]) / dt, (q.pos[1] - prev.pos[1]) / dt],
+        angularVelocity: (q.rot - prev.rot) / dt,
+        scaleVelocity: ((q.scale[0] - prev.scale[0]) + (q.scale[1] - prev.scale[1])) * 0.5 / dt
+      };
+      currentTransforms[layerId] = { pos: q.pos.slice(), scale: q.scale.slice(), rot: q.rot };
       var opac = clamp(q.opacity, 0, 1);
       if (opac <= 0) continue;
       stats.layers++;
@@ -713,15 +728,21 @@
       var durSec = (b - a) / 1000;
       var cur = tex, n = 0, alpha = 1, usedComp = false;
       var isCC = (typeof ccNoFill === 'function') && ccNoFill(l);
+      /* Adjustment layers operate on the accumulated scene, not on their
+       * transparent placeholder raster. Keeping the placeholder as the mask
+       * still supports lift/copy-background, while color-only CC effects now
+       * receive the real backdrop like the APK runtime. */
+      var effectInput = isCC ? read.tex : tex;
+      if (isCC) cur = effectInput;
       traceOn = isCC;
       for (var k = 0; k < effs.length; k++) {
-        var r = applyEffect(effs[k], cur, ext, timeSec, durSec, tt, read.tex, n);
+        var r = applyEffect(effs[k], cur, ext, timeSec, durSec, tt, read.tex, n, motion);
         if (r.tex) { cur = r.tex; n = r.n; if (r.usesComp) usedComp = true; }
       }
 
       var blendId = BLEND[String(attr(l, 'blending', '')).toLowerCase()] || 0;
       traceOn = false;
-      var guard = isCC && !usedComp && blendId === 0;
+       var guard = isCC && !usedComp && blendId === 0 && n === 0;
       if (isCC) {
         var lbl = attr(l, 'label', '') || l.tagName;
         ccTrace.push('#' + i + ' ' + lbl + '  n=' + n + '/' + effs.length +
@@ -743,6 +764,7 @@
     var ck = stats.cc + '|' + ccTrace.join('|');
     if (ccTrace.length && ck !== ccLogKey) { ccLogKey = ck; console.log('[cc]', stats.cc, ccTrace.join(' | ')); }
     engine.blit(read.tex, null, W, H);
+    previousTransforms = currentTransforms;
     stats.ms = ((global.performance && performance.now()) || Date.now()) - t0;
     return true;
   }
@@ -869,6 +891,8 @@
     ready = false; preparing = null;
     broken = {}; errSeen = {}; bgCache = null;
     layerCache = {};
+    previousTransforms = {};
+    currentTransforms = {};
     initErr = 0;
     if (scene) prepare().catch(function () {});
   }

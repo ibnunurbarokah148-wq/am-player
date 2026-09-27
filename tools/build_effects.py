@@ -30,6 +30,19 @@ OUT  = os.path.join(ROOT, "webfx")
 CAT_V5  = os.path.join(ROOT, "reference", "effects_catalog_v5.json")
 CAT_OLD = os.path.join(ROOT, "reference", "effects_catalog.json")
 
+# The extracted APK/catalog tree is intentionally explicit. A stale generated
+# bundle is worse than a failed build because it silently loses effect parity.
+def require_sources():
+    missing = [p for p in (FX, CAT_V5, CAT_OLD) if not os.path.exists(p)]
+    if missing:
+        print("ERROR: effect source-of-truth belum tersedia:", file=sys.stderr)
+        for p in missing:
+            print("  -", p, file=sys.stderr)
+        print("Restore apk-analysis/reference dari repo am-xml atau set source path sebelum build.", file=sys.stderr)
+        raise SystemExit(2)
+
+require_sources()
+
 # ---------------------------------------------------------------- string table
 # res/values/strings.xml is gone from the tree, but the compiled table survived
 # in resources.arsc — tools/arsc_strings.py flattens it to reference/app_strings.json
