@@ -9,11 +9,14 @@
     "dev": "node --watch index.js"
   },
   "dependencies": {
-    "express": "^4.19.2",
     "cors": "^2.8.5",
+    "express": "^4.19.2",
     "jszip": "^3.10.1"
   },
   "engines": {
     "node": ">=18"
+  },
+  "devDependencies": {
+    "linkedom": "^0.18.13"
   }
 }

@@ -26,3 +26,7 @@ endpoint-candidates.txt
 .DS_Store
 Thumbs.db
 jadx-src/
+
+# checkout proyek nyasar di dalam diri sendiri (duplikat 109MB, ada .git sendiri)
+# jangan ikut ke-commit. Isinya usang tapi tak dihapus tanpa izin.
+am-player/

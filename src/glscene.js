@@ -139,6 +139,7 @@
   function u1f(P, n, v) { var u = P.u[n]; if (u) engine.gl.uniform1f(u.loc, v); }
   function u1i(P, n, v) { var u = P.u[n]; if (u) engine.gl.uniform1i(u.loc, v); }
   function u2f(P, n, x, y) { var u = P.u[n]; if (u) engine.gl.uniform2f(u.loc, x, y); }
+  function um3f(P, n, m) { var u = P.u[n]; if (u) engine.gl.uniformMatrix3fv(u.loc, false, m); }
 
   function parseColor(v) {
     v = String(v || '#ff000000');
@@ -168,21 +169,16 @@
     'uniform sampler2D uDst;',
     'uniform sampler2D uSrc;',
     'uniform vec2 uScene;',      // scene px
-    'uniform vec2 uPos;',        // layer anchor, scene px, y-down
+    'uniform mat3 uInv;',        // world -> lokal layer (affine lengkap, sudah dibalik)
     'uniform vec2 uHalf;',       // layer texture half size, px
-    'uniform vec2 uScale;',
-    'uniform float uRot;',       // radians
     'uniform float uAlpha;',
     'uniform int uBlend;',
     'void main(){',
     '  vec3 dst=texture2D(uDst,vUv).rgb;',
     '  vec2 sp=vec2(vUv.x,1.0-vUv.y)*uScene;',           // scene px, y-down
-    '  vec2 d=sp-uPos;',
-    '  float c=cos(-uRot),s=sin(-uRot);',
-    '  vec2 r=vec2(d.x*c-d.y*s,d.x*s+d.y*c);',           // undo rotation
-    '  vec2 l=vec2(r.x/(abs(uScale.x)<1e-4?1e-4:uScale.x),',
-    '              r.y/(abs(uScale.y)<1e-4?1e-4:uScale.y));',
-    '  vec2 hn=l/uHalf;',
+    '  vec3 L=uInv*vec3(sp,1.0);',                       // -> koordinat lokal layer (px, pusat 0,0)
+    '  vec2 hn=vec2(L.x/(abs(uHalf.x)<1e-4?1e-4:uHalf.x),',
+    '               L.y/(abs(uHalf.y)<1e-4?1e-4:uHalf.y));',
     '  if(abs(hn.x)>1.0||abs(hn.y)>1.0){gl_FragColor=vec4(dst,1.0);return;}',
     '  vec2 suv=vec2(hn.x*0.5+0.5,0.5-hn.y*0.5);',
     '  vec4 src=texture2D(uSrc,suv);',
@@ -626,10 +622,8 @@
     gl.bindTexture(gl.TEXTURE_2D, srcTex);
     u1i(P, 'uSrc', 1);
     u2f(P, 'uScene', scene.w, scene.h);
-    u2f(P, 'uPos', q.pos[0], q.pos[1]);
     u2f(P, 'uHalf', ext.w / 2, ext.h / 2);
-    u2f(P, 'uScale', q.scale[0], q.scale[1]);
-    u1f(P, 'uRot', q.rot * Math.PI / 180);
+    um3f(P, 'uInv', mInv(q.m));   /* T*R*S milik layer + seluruh rantai embedScene */
     u1f(P, 'uAlpha', clamp(q.opacity, 0, 1) * alpha);
     u1i(P, 'uBlend', blend);
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
@@ -658,6 +652,7 @@
     var read = A, write = B;
     stats.layers = 0; stats.fx = 0; stats.native = 0;
     stats.skipped = 0; stats.missing = 0; stats.broken = 0;
+    stats.chain = 0;
     ccTrace = []; ccShort = []; stats.cc = '';
 
     for (var i = 0; i < scene.layers.length; i++) {
@@ -666,10 +661,12 @@
       var a = num(attr(l, 'startTime', 0)), b = num(attr(l, 'endTime', scene.duration));
       if (timeMs < a || timeMs > b) continue;
       var tt = clamp((timeMs - a) / (b - a || 1), 0, 1);
-      var q = tr(l, tt);
-      var opac = clamp(q.opacity, 0, 1);
+      var q = tr(l, tt, timeMs);
+      if (!q.ok) continue;                 /* induk <embedScene>/<group> hidden/di luar jendela */
+      var opac = clamp(q.mop, 0, 1);       /* opacity layer x tiap induk */
       if (opac <= 0) continue;
       stats.layers++;
+      if (q.nch) stats.chain = (stats.chain || 0) + 1;
 
       var ext = extent(l, tt);
       var st = imgState(l);

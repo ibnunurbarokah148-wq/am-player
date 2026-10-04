@@ -2,7 +2,34 @@ const $=id=>document.getElementById(id);const canvas=$('canvas'),ctx=canvas.getC
 const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));const num=(v,d=0)=>Number.isFinite(Number(v))?Number(v):d;const attr=(e,n,d='')=>e?.getAttribute(n)??d;const vec=v=>String(v||'').split(',').map(Number);const fmt=ms=>{const s=Math.max(0,ms)/1000;return`${String(Math.floor(s/60)).padStart(2,'0')}:${(s%60).toFixed(2).padStart(5,'0')}`};
 function toast(t){const e=$('toast');e.textContent=t;e.classList.add('show');setTimeout(()=>e.classList.remove('show'),2600)}function status(t){const s=$('projectState');if(s)s.textContent=t;const sub=$('subtitle');if(sub)sub.textContent=t}
 function color(v){v=String(v||'#ff000000');if(/^#[0-9a-f]{8}$/i.test(v))return`rgba(${parseInt(v.slice(3,5),16)},${parseInt(v.slice(5,7),16)},${parseInt(v.slice(7,9),16)},${parseInt(v.slice(1,3),16)/255})`;return v}
-function flatten(root,out=[]){for(const e of root.children){if(e.tagName==='group'){flatten(e,out);continue}const decl=e.tagName==='media'&&e.hasAttribute('uri')&&!e.hasAttribute('startTime');if(!decl&&['shape','text','media','color','drawing'].includes(e.tagName))out.push(e)}return out}
+/* flatten(root) -> daftar layer GEOMETRIS yang digambar, urutan AMC/over-under.
+ *
+ * Dua lubang lama, keduanya ditemukan tools/audit_amproj.mjs:
+ *   1. tag `embedScene` (precomp AM / "Group") TIDAK ada di whitelist dan tidak
+ *      pernah direkursi -> SELURUH subtree-nya hilang dari preview.
+ *      Preset "nan ko paham db" punya 3 group; 2 di antaranya nyangkut di sini.
+ *   2. <transform> milik <group>/<embedScene> sendiri harus diwariskan ke anak.
+ *      Kita TIDAK bakar (bake) ke anak — keyframe-nya animasi, harus dievaluasi
+ *      tiap frame. Simpan saja rantainya di `layer.__chain` (luar -> dalam) dan
+ *      kumpulkan matriksnya di tr() (renderer.js) saat render.
+ *
+ * Urutan rantai: M_total = M_luar * ... * M_dalam * M_layer  (kiri * kanan,
+ * sama kayak urutan ctx.translate/rotate/scale).
+ * Pivot ikut DIABAIKAN — sama persis dengan `xe()` di deobf.js
+ * (translate -> rotate -> scale, konten dipusatkan di 0,0) yang juga tak baca pivot.
+ */
+function flatten(root,out=[],chain){
+  chain=chain||[];
+  for(const e of root.children){
+    if(e.tagName==='group'||e.tagName==='embedScene'){flatten(e,out,chain.concat(e));continue}
+    if(e.tagName==='scene'){flatten(e,out,chain);continue}   /* <scene> di dalam embedScene */
+    const decl=e.tagName==='media'&&e.hasAttribute('uri')&&!e.hasAttribute('startTime');
+    if(!decl&&['shape','text','media','color','drawing'].includes(e.tagName)){
+      if(chain.length)e.__chain=chain;   /* XML element boleh dikasih properti */
+      out.push(e)
+    }
+  }
+  return out}
 function bezier(x1,y1,x2,y2,t){let lo=0,hi=1,u=t;for(let i=0;i<14;i++){u=(lo+hi)/2;const x=3*(1-u)**2*u*x1+3*(1-u)*u**2*x2+u**3;if(x<t)lo=u;else hi=u}return 3*(1-u)**2*u*y1+3*(1-u)*u**2*y2+u**3}
 /* == easing: port VERBATIM dari runtime/preset.html (preset-ZQDZXE2A.js) ==
  * Di sana ada parser `es(str)` + tiga pabrik fungsi:
@@ -209,7 +236,55 @@ function value(parent,name,t,def){
   const av=vec(a.getAttribute('v')),bv=vec(b.getAttribute('v'));
   return av.map((x,i)=>x+(bv[i]-x)*q).join(',')
 }
-function tr(l,t){const x=[...l.children].find(e=>e.tagName==='transform');return{pos:vec(value(x,'location',t,'0,0')),scale:vec(value(x,'scale',t,'1,1')),rot:num(value(x,'rotation',t,'0')),opacity:num(value(x,'opacity',t,'1'))}}
+/* ---------- affine 2D, konvensi canvas: [a,b,c,d,e,f] --------------------
+ *  x' = a*x + c*y + e ;  y' = b*x + d*y + f
+ *  mMul(A,B) = A lalu B (B dijalankan duluan) — persis urutan ctx.*(). */
+const mMul=(A,B)=>[A[0]*B[0]+A[2]*B[1],A[1]*B[0]+A[3]*B[1],
+                   A[0]*B[2]+A[2]*B[3],A[1]*B[2]+A[3]*B[3],
+                   A[0]*B[4]+A[2]*B[5]+A[4],A[1]*B[4]+A[3]*B[5]+A[5]];
+/* T(pos) * R(rot) * S(scale) — urutan yang dipakai deobf `xe()` */
+function mTRS(p,deg,sc){
+  const r=deg*Math.PI/180,c=Math.cos(r),s=Math.sin(r);
+  return [c*sc[0],s*sc[0],-s*sc[1],c*sc[1],p[0],p[1]];
+}
+/* balik affine -> mat3 kolom-major utk GLSL (col-major: [a,b,0, c,d,0, e,f,1]) */
+function mInv(m){
+  const a=m[0],b=m[1],c=m[2],d=m[3],e=m[4],f=m[5],det=a*d-b*c;
+  const k=Math.abs(det)<1e-9?0:1/det;
+  return new Float32Array([d*k,-b*k,0, -c*k,a*k,0, (c*f-d*e)*k,(b*e-a*f)*k,1]);
+}
+/* tr(layer, tNorm, tAbsMs) -> transform layer + rantai <embedScene>/<group>.
+ *   q.m   : affine lengkap luar..dalam * layer  (untuk ctx.transform / GL)
+ *   q.mop : opacity TOTAL (layer x tiap induk)
+ *   q.ok  : false kalau salah satu induk di luar jendela waktunya / hidden
+ * tAbsMs WAJIB diisi pemanggil (draw, drawDebug, glscene.render) karena
+ * jendela startTime/endTime induk dihitung dalam milidetik absolut. */
+function tr(l,t,tAbs){
+  const x=[...l.children].find(e=>e.tagName==='transform');
+  const q={pos:vec(value(x,'location',t,'0,0')),scale:vec(value(x,'scale',t,'1,1')),
+           rot:num(value(x,'rotation',t,'0')),opacity:num(value(x,'opacity',t,'1'))};
+  let m=mTRS(q.pos,q.rot,q.scale),op=q.opacity,ok=true;
+  const ch=l.__chain;
+  if(ch&&ch.length){
+    const hasAbs=typeof tAbs==='number'&&scene;
+    for(let i=ch.length-1;i>=0;i--){
+      const e=ch[i];
+      /* jendela waktu induk: Group 4 di preset user mulai tampil di 1633ms */
+      let et;
+      if(hasAbs){
+        const a=num(attr(e,'startTime',0)),b=num(attr(e,'endTime',scene.duration));
+        if(tAbs<a||tAbs>b||attr(e,'hidden','')==='true'){ok=false;break}
+        et=clamp((tAbs-a)/(b-a||1),0,1);
+      }else et=t;   /* pemanggil tanpa tAbs: tetap komposisi, tanpa gating */
+      const y=[...e.children].find(z=>z.tagName==='transform');
+      m=mMul(mTRS(vec(value(y,'location',et,'0,0')),num(value(y,'rotation',et,'0')),
+                  vec(value(y,'scale',et,'1,1'))),m);
+      op*=clamp(num(value(y,'opacity',et,'1')),0,1);
+    }
+  }
+  q.m=m;q.mop=op;q.ok=ok;q.nch=ch?ch.length:0;
+  return q;
+}
 function parse(text){const d=new DOMParser().parseFromString(text,'application/xml');if(d.querySelector('parsererror')||d.documentElement.tagName!=='scene')throw Error('XML tidak valid: root harus <scene>');const r=d.documentElement,layers=flatten(r);scene={root:r,layers,w:num(attr(r,'width',1080),1080),h:num(attr(r,'height',1920),1920),fps:num(attr(r,'fps',30),30),duration:num(attr(r,'totalTime',2000),2000)};canvas.width=scene.w;canvas.height=scene.h;mediaSlots=layers.filter(x=>x.getAttribute('fillVideo')||x.getAttribute('fillImage')).map((layer,i)=>({layer,name:attr(layer,'label',`Media ${i+1}`),file:null}));audioTracks=[...r.children].filter(x=>x.tagName==='audio').map((layer,i)=>({layer,name:attr(layer,'label',`Audio ${i+1}`),file:null,audio:null}));renderUi();renderEffects();draw(0);$('empty').classList.add('hidden');$('playBtn').disabled=false;$('timeline').disabled=false;$('exportBtn').disabled=false;$('timeline').max=scene.duration;status(`Loaded · ${layers.length} layers · ${mediaSlots.length} media slots`)}
 function renderUi(){const title=$('projectTitle');if(title)title.textContent=attr(scene.root,'title','Untitled');const meta=$('projectMeta');if(meta)meta.textContent=`${scene.w} × ${scene.h} · ${scene.fps} fps · ${fmt(scene.duration)}`;const projectInfo=$('projectInfo');if(projectInfo)projectInfo.innerHTML=`Title: ${attr(scene.root,'title','—')}<br>Duration: ${fmt(scene.duration)}<br>Format: AM ${attr(scene.root,'amver','—')}`;$('layerCount').textContent=scene.layers.length;$('mediaCount').textContent=mediaSlots.length;$('audioCount').textContent=audioTracks.length;const layerList=$('layers');if(layerList)layerList.innerHTML=scene.layers.map((l,i)=>`<div class="layer-row${attr(l,'hidden','')==='true'?' off':''}"><span class="layer-icon">${l.tagName==='text'?'T':l.getAttribute('fillVideo')?'▣':'◇'}</span><span>${attr(l,'label',`${l.tagName} ${i+1}`)}</span><button class="eye${attr(l,'hidden','')==='true'?' is-off':''}" data-eye="${i}" title="${attr(l,'hidden','')==='true'?'Tampilkan layer ini':'Sembunyikan layer ini'}">${attr(l,'hidden','')==='true'?'Tampil':'Sembunyi'}</button></div>`).join('');const mediaList=$('mediaList');if(mediaList)mediaList.innerHTML=mediaSlots.length?mediaSlots.map((s,i)=>`<div class="slot"><span class="layer-icon">▣</span><b>${s.file?.name||s.name}</b><button data-media="${i}">${s.file?'Ganti':'Pilih'}</button></div>`).join(''):'<div class="muted">Tidak ada media slot</div>';const audioList=$('audioList');if(audioList)audioList.innerHTML=audioTracks.length?audioTracks.map((s,i)=>`<div class="slot"><span>♫</span><b>${s.file?.name||s.name}</b><button data-audio="${i}">${s.file?'Ganti':'Pilih'}</button></div>`).join(''):'<div class="muted">Tidak ada audio layer</div>';const timelineCount=$('timelineCount');if(timelineCount)timelineCount.textContent=`${scene.layers.length} layers`;const timelineRows=$('timelineRows');if(timelineRows)timelineRows.innerHTML=scene.layers.map((l,i)=>{const a=num(attr(l,'startTime',0)),b=num(attr(l,'endTime',scene.duration));return`<div class="tl-row${attr(l,'hidden','')==='true'?' off':''}"><span class="tl-label">${attr(l,'label',l.tagName)}</span><span class="tl-bar" style="width:${Math.max(2,(b-a)/scene.duration*70)}%"></span><button class="eye tl-eye${attr(l,'hidden','')==='true'?' is-off':''}" data-eye="${i}" title="${attr(l,'hidden','')==='true'?'Tampilkan layer ini':'Sembunyikan layer ini'}">${attr(l,'hidden','')==='true'?'Tampil':'Sembunyi'}</button></div>`}).join('')}
 function loadMedia(file,slot){const el=file.kind==='video'?document.createElement('video'):new Image();if(file.kind==='video'){el.muted=true;el.playsInline=true;el.preload='auto'}const m={element:el,kind:file.kind,ready:false};const done=()=>{m.ready=true;draw(offset)};el.onload=done;el.onloadeddata=done;el.onerror=()=>toast(`Gagal memuat ${file.name}`);el.src=file.url;mediaMap.set(file.url,m);slot.file=file;renderUi()}
@@ -307,14 +382,14 @@ function drawDebug(time){
     const l=scene.layers[i];
     const a=num(attr(l,'startTime',0)),b=num(attr(l,'endTime',scene.duration));
     if(time<a||time>b)continue;
-    const t=clamp((time-a)/(b-a||1),0,1),q=tr(l,t);
+    const t=clamp((time-a)/(b-a||1),0,1),q=tr(l,t,time);
+    if(!q.ok)continue;                                   /* induk hidden / di luar jendela */
     const size=amSize(l,t,'300,300');
     const gated=ccNoFill(l);
     const col=gated?'#ff4d6d':'#38f0c0';
+    const cx=q.m[4],cy=q.m[5];                           /* pusat layer sesudah rantai */
     ctx.save();
-    ctx.translate(q.pos[0],q.pos[1]);
-    ctx.rotate(q.rot*Math.PI/180);
-    ctx.scale(q.scale[0],q.scale[1]);
+    ctx.transform(q.m[0],q.m[1],q.m[2],q.m[3],q.m[4],q.m[5]);
     ctx.lineWidth=6/(Math.abs(q.scale[0])+Math.abs(q.scale[1])||1);
     ctx.strokeStyle=col;
     ctx.strokeRect(-size[0]/2,-size[1]/2,size[0],size[1]);
@@ -323,12 +398,13 @@ function drawDebug(time){
     ctx.font='14px ui-monospace,monospace';ctx.textAlign='left';
     ctx.fillStyle=col;
     ctx.fillText((gated?'[cc:'+ccReason(l)+'] ':'')+i+' '+attr(l,'label',l.tagName),
-                 q.pos[0]+8,q.pos[1]-8);
+                 cx+8,cy-8);
     ctx.restore();
-    seen.push(i+'|'+(attr(l,'label')||l.tagName)+'|'+(gated?'cc:'+ccReason(l):'fill'));
+    seen.push(i+'|'+(attr(l,'label')||l.tagName)+(q.nch?'|chain'+q.nch:'')+'|'+(gated?'cc:'+ccReason(l):'fill'));
     /* LAPORAN PENUTUP: bentang >=90% durasi DAN menutupi kanvas.
      * Kalau kotak solid tapi semua outline HIJAU -> biangnya ada di daftar ini. */
-    const sw=Math.abs(size[0]*(q.scale[0]||1)),sh=Math.abs(size[1]*(q.scale[1]||1));
+    const sx=Math.hypot(q.m[0],q.m[1]),sy=Math.hypot(q.m[2],q.m[3]);
+    const sw=Math.abs(size[0]*sx),sh=Math.abs(size[1]*sy);
     if((b-a)>=scene.duration*0.9&&sw>=scene.w*0.95&&sh>=scene.h*0.95)
       cov.push((gated?'cc['+ccReason(l)+'] ':'#')+i+' '+attr(l,'label',l.tagName)
         +' fill='+(l.getAttribute('fillImage')?'media':(attr(l,'fillType','')||'color'))
@@ -360,19 +436,18 @@ function draw(time){
     const a=num(attr(l,'startTime',0)),b=num(attr(l,'endTime',scene.duration));
     if(time<a||time>b)continue;
     if(attr(l,'hidden','')==='true')continue;   /* reference: l.hidden -> return */
-    const t=clamp((time-a)/(b-a||1),0,1),q=tr(l,t);
+    const t=clamp((time-a)/(b-a||1),0,1),q=tr(l,t,time);
+    if(!q.ok)continue;                                   /* induk hidden / di luar jendela */
     const slot=mediaSlots.find(s=>s.layer===l);
     if(slot&&slot.missing)continue;                       /* aset tak ada di paket */
     if(ccNoFill(l))continue;                              /* CC: isi fill ditahan */
     const size=amSize(l,t,'300,300');
     const m=slot?.file&&mediaMap.get(slot.file.url);
     ctx.save();
-    ctx.globalAlpha=clamp(q.opacity,0,1);
+    ctx.globalAlpha=clamp(q.mop,0,1);                     /* opacity layer x induk */
     const bl=B2D[String(attr(l,'blending','')).toLowerCase()];
     if(bl)ctx.globalCompositeOperation=bl;   /* ctx.save/restore balikin sendiri */
-    ctx.translate(q.pos[0],q.pos[1]);
-    ctx.rotate(q.rot*Math.PI/180);
-    ctx.scale(q.scale[0],q.scale[1]);
+    ctx.transform(q.m[0],q.m[1],q.m[2],q.m[3],q.m[4],q.m[5]);
     const x0=-size[0]/2,y0=-size[1]/2;
     if(l.getAttribute('fillVideo')||l.getAttribute('fillImage')){
       if(m?.ready)drawMedia(ctx,m.element,l.getAttribute('mediaFillMode'),x0,y0,size[0],size[1]);
@@ -526,10 +601,11 @@ function glReport(){
     ' \u00b7 '+(s.fx||0)+' fx ('+brk+' rusak, '+(s.missing||0)+' hilang)'+
     ' \u00b7 '+Math.round(s.ms||0)+'ms'+
     (s.cc ? ' \u00b7 cc '+s.cc : '')+
-    ((s.skipped||0) ? ' \u00b7 skip '+s.skipped : '');
+    ((s.skipped||0) ? ' \u00b7 skip '+s.skipped : '')+
+    ((s.chain||0) ? ' \u00b7 chain '+s.chain : '');   /* layer di dalam <embedScene>/<group> */
   el.textContent=txt;el.className=(s.gl&&s.ready)?'on':'off';
   console.log('[glReport]',txt,s);
 }
-console.log('[build] ccB3');if($('glState'))$('glState').textContent='build ccB3';
+console.log('[build] ccB4');if($('glState'))$('glState').textContent='build ccB4';
 $('loadUrlBtn').onclick=()=>$('modal').classList.remove('hidden');$('closeModal').onclick=$('cancelUrl').onclick=()=>$('modal').classList.add('hidden');$('fetchUrl').onclick=async()=>{const box=$('shareInfo');const btn=$('fetchUrl');box.classList.remove('hidden');btn.disabled=true;box.textContent='Mengunduh paket… bisa 60–120 detik, jangan ditutup.';try{const r=await window.desktop.resolveShare($('urlInput').value.trim());box.textContent=r.metadata.title+(r.metadata.projectCount?` — ${r.metadata.projectCount} project`:'')+(r.metadata.description?' · '+r.metadata.description:'');if(r.scenes){parse(r.scenes[0].text);if(r.media)attachShareMedia(r.media,r.manifest)}}catch(e){box.textContent='⚠ '+e.message}finally{btn.disabled=false;setTimeout(glReport,3000)}};$('exportBtn').onclick=()=>toast('Export belum diaktifkan pada runtime v1');
 window.addEventListener('error',e=>{console.error(e.error||e.message);toast(e.message)});window.addEventListener('unhandledrejection',e=>{console.error(e.reason);toast(e.reason?.message||'Runtime error')});
