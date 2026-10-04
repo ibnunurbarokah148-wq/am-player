@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Alight Motion — Player Preset</title>
+<link rel="stylesheet" href="/public/styles.css">
+<style>
+/* layout khusus pemutar: layar gelap penuh, kanvas di tengah, transport di bawah.
+   palet diambil dari styles.css (--accent, --light) supaya satu bahasa desain. */
+:root{--pbg:#0B0E1A;--ppanel:#171A26;--pline:#2A2F45;--ptxt:#E8EAF2;--pdim:#9AA0B5}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0;background:var(--pbg);color:var(--ptxt);
+  font-family:Roboto,Arial,Helvetica,sans-serif;overflow:hidden;-webkit-text-size-adjust:100%}
+#player{height:100dvh;max-width:920px;margin:0 auto;display:flex;flex-direction:column}
+
+.top{display:flex;align-items:center;gap:8px;padding:10px 14px;min-height:44px}
+.top h1{font-size:15px;font-weight:700;margin:0;flex:1;min-width:0;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.badge{font-size:11px;color:var(--pdim);border:1px solid var(--pline);border-radius:999px;
+  padding:3px 8px;white-space:nowrap}
+.badge.on{color:#04140D;background:var(--accent);border-color:var(--accent);font-weight:700}
+
+.stage{flex:1;min-height:0;position:relative;display:flex;align-items:center;justify-content:center;
+  padding:8px;background:repeating-conic-gradient(#12141d 0 25%,#0e1018 0 50%) 0 0/24px 24px}
+#preview{max-width:100%;max-height:100%;background:#000;border-radius:4px;
+  box-shadow:0 12px 44px rgba(0,0,0,.55);display:block}
+#drop{position:absolute;inset:8px;display:none;place-items:center;text-align:center;
+  background:rgba(11,14,26,.88);border:2px dashed var(--accent);border-radius:8px;
+  color:var(--accent);font-size:15px;font-weight:700;padding:20px}
+body.dragging #drop{display:grid}
+#ghost{position:absolute;color:var(--pdim);font-size:13px;text-align:center;padding:0 20px}
+
+.bar{display:flex;align-items:center;gap:8px;padding:10px 12px;background:var(--ppanel);
+  border-top:1px solid var(--pline)}
+.tbtn{width:38px;height:38px;flex:0 0 auto;border-radius:50%;border:1px solid var(--pline);
+  background:#23263A;color:var(--ptxt);cursor:pointer;font-size:15px;display:grid;place-items:center}
+.tbtn:active{transform:scale(.96)}
+.tbtn.main{width:46px;height:46px;background:var(--accent);border-color:var(--accent);
+  color:#04140D;font-size:18px;font-weight:700}
+#scrub{flex:1;min-width:60px;accent-color:var(--accent);height:26px}
+.tc{font-variant-numeric:tabular-nums;font-size:12px;color:var(--pdim);min-width:104px;text-align:right}
+.spd{background:#23263A;color:var(--ptxt);border:1px solid var(--pline);border-radius:8px;
+  padding:8px 6px;font-size:12px}
+
+.open{display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:10px 12px;
+  background:var(--ppanel);border-top:1px solid var(--pline)}
+.open input[type=text]{flex:1;min-width:170px;background:#0E1018;border:1px solid var(--pline);
+  color:var(--ptxt);border-radius:10px;padding:10px;font-size:12px}
+.open .btn-dark{background:#23263A;color:var(--accent);padding:10px 14px}
+.open .btn-light{background:#EDEDF2;color:#23263A;padding:10px 12px}
+.note{padding:4px 14px 12px;font-size:12px;line-height:1.5;color:var(--pdim);min-height:34px;
+  word-break:break-word}
+.note.err{color:#FF8A95}
+.note b{color:var(--ptxt)}
+
+#errbox{position:fixed;left:8px;right:8px;bottom:8px;max-height:34vh;overflow:auto;
+  background:#2A1216;border:1px solid #6D2731;color:#FFB4BC;border-radius:8px;
+  font:11px/1.5 ui-monospace,SFMono-Regular,Menlo,monospace;padding:8px 10px;
+  white-space:pre-wrap;display:none;z-index:20}
+#errbox.show{display:block}
+#errbox button{position:sticky;top:0;float:right;background:#6D2731;border:none;color:#fff;
+  border-radius:6px;padding:2px 8px;cursor:pointer;margin-left:8px}
+
+@media (max-width:560px){
+  .tc{min-width:78px;font-size:11px}
+  .top h1{font-size:14px}
+  .open{gap:6px}
+  .open input[type=text]{min-width:120px}
+}
+</style>
+</head>
+<body>
+<div id="player">
+  <div class="top">
+    <h1 id="title">Player Preset</h1>
+    <span class="badge" id="glBadge">engine: —</span>
+    <span class="badge" id="stat">kosong</span>
+  </div>
+
+  <div class="stage" id="stage">
+    <canvas id="preview" width="1080" height="1920"></canvas>
+    <div id="ghost">belum ada preset — pilih file / tempel link / jatuhkan file ke sini</div>
+    <div id="drop">lepas file preset di sini<br><small>.xml · .zip · .amproj · .alight · .json</small></div>
+  </div>
+
+  <div class="bar">
+    <button class="tbtn main" id="btnPlay" title="putar / jeda" aria-label="putar">▶</button>
+    <button class="tbtn" id="btnStart" title="ke awal" aria-label="awal">⏮</button>
+    <input type="range" id="scrub" min="0" max="0" step="1" value="0" aria-label="posisi">
+    <span class="tc" id="tc">00:00.000</span>
+    <select class="spd" id="spd" aria-label="kecepatan">
+      <option value="0.25">0.25×</option><option value="0.5">0.5×</option>
+      <option value="1" selected>1×</option><option value="1.5">1.5×</option>
+      <option value="2">2×</option>
+    </select>
+    <button class="tbtn" id="btnFull" title="layar penuh" aria-label="layar penuh">⛶</button>
+  </div>
+
+  <div class="open">
+    <button class="btn-dark" id="btnFile">Pilih file</button>
+    <button class="btn-dark" id="btnEx">Contoh preset</button>
+    <input type="text" id="lnk" spellcheck="false"
+      placeholder="https://alightcreative.com/am/share/u/.../p/...">
+    <button class="btn-dark" id="btnLoad">Muat link</button>
+    <button class="btn-light" id="btnErr">log error</button>
+  </div>
+
+  <div class="note" id="note">pemutar preset Alight Motion — tanpa login, tanpa editor.
+    file <b>.xml</b>/<b>.zip</b>/<b>.amproj</b> dibaca lokal; link share ditarik lewat
+    <b>/api/share</b> (medianya ikut).</div>
+
+  <input type="file" id="file" accept=".xml,.txt,.zip,.amproj,.alight,.json" hidden>
+</div>
+<div id="errbox"><button id="errClose" type="button">tutup</button><div id="errList"></div></div>
+
+<script type="module" src="/js/player.js?v=ccB7"></script>
+</body>
+</html>

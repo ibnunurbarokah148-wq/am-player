@@ -90,5 +90,38 @@ ok(missingId.length === 0, `semua id efek ada di index.json (hilang: ${missingId
 ok(missingFile.length === 0, `semua file XML ada di disk (hilang: ${missingFile.length})`);
 ok(STAT.copyBg > 0, `total layer CC kebaca: copyBg=${STAT.copyBg} adjFx=${STAT.adjFx}`);
 
+/* ---------- tahap 2: inti render (js/amraster.js) headless ---------- */
+console.log(`\n=== inti render: js/amraster.js ===`);
+const AMR = await import(path.join(ROOT, 'js/amraster.js'));
+let metrics = 0, fxVals = 0, bad = 0, blends = new Set();
+for (let si = 0; si < pkg.scenes.length; si++) {
+  const p = parseAMXML(pkg.scenes[si].text, 'scene' + si, pkg.scenes[si].pkgId || null);
+  AMR.setProject(p);
+  for (const l of p.layers) {
+    if (l.type === 'audio' || l.visible === false) continue;
+    const T = (l.startMs + l.endMs) / 2;
+    const m = AMR.rasterContent(l, T, null, true);   // metricsOnly: tak sentuh kanvas
+    if (!m) { bad++; continue; }
+    const nums = [m.cx, m.cy, m.fw, m.fh, m.opacity];
+    /* sx/sy NEGATIF itu sah di AM = media dibalik (flip). Yang haram cuma 0/NaN. */
+    if (nums.some(v => !Number.isFinite(v)) || m.fw === 0 || m.fh === 0 ||
+        m.opacity < 0 || m.opacity > 100) { bad++; continue; }
+    if (!AMR.blendMap(l.blend || 'normal')) { bad++; continue; }
+    blends.add(l.blend || 'normal');
+    metrics++;
+    if (!Number.isFinite(AMR.evalProp(l, 'x', T)) || !Number.isFinite(AMR.evalProp(l, 'rot', T))) bad++;
+    for (const f of l.fx || []) {
+      for (const k of Object.keys(f.params || {})) {
+        const v = AMR.evalFxParam(f, k, T);
+        if (typeof v === 'number' && !Number.isFinite(v)) bad++;
+        fxVals++;
+      }
+    }
+  }
+}
+ok(bad === 0, `rasterContent metricsOnly: ${metrics} layer finite & tak nol, cacat ${bad} (tanpa DOM/kanvas)`);
+ok(fxVals > 0, `evalFxParam: ${fxVals} nilai param fx dievaluasi, blend beda: ${blends.size}`);
+ok(AMR.GL && typeof AMR.GL.fail === 'boolean', 'modul amraster impor bersih (state GL + export lengkap)');
+
 console.log(`\n======== ${n - fail}/${n} lulus ========`);
 process.exit(fail ? 1 : 0);

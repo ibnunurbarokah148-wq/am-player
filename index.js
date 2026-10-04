@@ -14,7 +14,7 @@ const app = express();
 app.use('/src', express.static(path.join(ROOT, 'src')));
 // src/index.html uses relative URLs such as /styles.css and /renderer.js.
 // Also expose the same files at the web root for the browser runtime.
-app.use(express.static(path.join(ROOT, 'src')));
+app.use(express.static(path.join(ROOT, 'src'), { index: false })); // '/' dialihkan ke pemutar preset
 // Expose the bundled JSZip for the browser web-fallback shim (.zip/.alight support).
 app.use('/vendor/jszip.min.js', express.static(path.join(ROOT, 'node_modules', 'jszip', 'dist', 'jszip.min.js')));
 app.use('/preset', express.static(path.join(ROOT, 'preset')));
@@ -29,9 +29,17 @@ app.use('/js', express.static(path.join(ROOT, 'js')));
 app.use('/amfx', express.static(path.join(ROOT, 'webfx', 'effects')));
 
 // Root → index.html
-app.get('/', (req, res) => {
-  res.sendFile(path.join(ROOT, 'src', 'index.html'));
-});
+// Bundle pemutar dari public/ (HTML+CSS punya bundle motionary)
+app.use('/public', express.static(path.join(ROOT, 'public')));
+
+// '/' -> PEMUTAR PRESET (produk utama: buka preset, putar, tanpa editor)
+const playerHtml = path.join(ROOT, 'public', 'player.html');
+app.get('/', (req, res) => res.sendFile(playerHtml));
+app.get('/player', (req, res) => res.sendFile(playerHtml));
+// editor lengkap bundle motionary (base path-nya harus /public/)
+app.get('/editor', (req, res) => res.redirect('/public/index.html'));
+// app lama kita (UI sendiri + engine lama) masih bisa dibuka untuk dibandingkan
+app.get('/legacy', (req, res) => res.sendFile(path.join(ROOT, 'src', 'index.html')));
 
 // Health check
 app.get('/health', (req, res) => {
