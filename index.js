@@ -21,6 +21,12 @@ app.use('/preset', express.static(path.join(ROOT, 'preset')));
 app.use('/effects', express.static(path.join(ROOT, 'effects')));
 // Alight Motion effect pack: effects.json + preprocessed GLSL (tools/build_effects.py)
 app.use('/webfx', express.static(path.join(ROOT, 'webfx')));
+// Mesin render pihak ketiga (js/ = sumber motionary: amgl/preset/fx) — modul ES.
+app.use('/js', express.static(path.join(ROOT, 'js')));
+// Paket efek MENTAH Alight Motion (XML + CDATA GLSL + <script> animate()):
+// inilah format yang diminta js/amgl.js -> fetch('/amfx/index.json') lalu
+// fetch('/amfx/<file>'). Sumbernya folder webfx/effects yang sama.
+app.use('/amfx', express.static(path.join(ROOT, 'webfx', 'effects')));
 
 // Root → index.html
 app.get('/', (req, res) => {
