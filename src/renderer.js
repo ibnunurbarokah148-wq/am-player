@@ -606,6 +606,6 @@ function glReport(){
   el.textContent=txt;el.className=(s.gl&&s.ready)?'on':'off';
   console.log('[glReport]',txt,s);
 }
-console.log('[build] ccB5');if($('glState'))$('glState').textContent='build ccB5';
+console.log('[build] ccB6');if($('glState'))$('glState').textContent='build ccB6';
 $('loadUrlBtn').onclick=()=>$('modal').classList.remove('hidden');$('closeModal').onclick=$('cancelUrl').onclick=()=>$('modal').classList.add('hidden');$('fetchUrl').onclick=async()=>{const box=$('shareInfo');const btn=$('fetchUrl');box.classList.remove('hidden');btn.disabled=true;box.textContent='Mengunduh paket… bisa 60–120 detik, jangan ditutup.';try{const r=await window.desktop.resolveShare($('urlInput').value.trim());box.textContent=r.metadata.title+(r.metadata.projectCount?` — ${r.metadata.projectCount} project`:'')+(r.metadata.description?' · '+r.metadata.description:'');if(r.scenes){parse(r.scenes[0].text);if(r.media)attachShareMedia(r.media,r.manifest)}}catch(e){box.textContent='⚠ '+e.message}finally{btn.disabled=false;setTimeout(glReport,3000)}};$('exportBtn').onclick=()=>toast('Export belum diaktifkan pada runtime v1');
 window.addEventListener('error',e=>{console.error(e.error||e.message);toast(e.message)});window.addEventListener('unhandledrejection',e=>{console.error(e.reason);toast(e.reason?.message||'Runtime error')});

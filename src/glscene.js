@@ -32,6 +32,7 @@
   var ready = false, preparing = null, initErr = 0;
   var enabled = true;
   var broken = {}, errSeen = {};
+  var IDENT_M3 = new Float32Array([1, 0, 0, 0, 1, 0, 0, 0, 1]);  /* acPassToComp fallback */
   var images = null;
   var c2 = null, x2 = null;             // offscreen 2d canvas + ctx
   var glc = null;
@@ -557,7 +558,38 @@
     ccTrace.push(s);
   }
 
-  function applyEffect(el, input, ext, timeSec, durSec, tt, compTex, n) {
+  /* uv PASS (y-up, seukuran extent layer) -> uv KOMPPOSISI (y-up).
+   *
+   * Pass efek seukuran `ext` (bbox layer + PAD), `comp` = FBO scene penuh.
+   * Kita pakai persis algebar composite() (lihat shader composite di bawah):
+   *     L   = ((u-0.5)*ext.w, (0.5-v)*ext.h)   koordinat lokal layer, y-down
+   *     sp  = q.m * L                          px kanvas, y-down (matriks T*R*S
+   *                                           lengkap + rantai embedScene)
+   *     cuv = (sp.x/W, 1 - sp.y/H)             uv tekstur kanvas, y-up
+   * disusun sbg matriks kolom-major utk bentuk `vec3 * mat3` (v*M), jadi
+   * kolom 0 = koef u, kolom 1 = koef v, kolom 2 = translasi.
+   *
+   * Kasus uji: layer pas-kanvas tanpa pad -> matriks HARUS identitas. */
+  function pass2comp(m, ext, W, H) {
+    var a = m[0], b = m[1], c = m[2], d = m[3], e = m[4], f = m[5];
+    var ew = ext.w, eh = ext.h;
+    var iw = 1 / (W || 1), ih = 1 / (H || 1), h = 0.5;
+    /* bentuk GLSL `vec3 * mat3`: (v*M).j = dot(v, kolom j) — KOLOM 0 yang
+     * menghasilkan x, jadi konstanta homogen (v.z=1) ikut di arr[2], bukan di
+     * kolom terakhir. Salah susun = komposisi kegeser (const jadi 0); dua kali
+     * salah di sini dan dua-duanya ketangkep tools/sim_compuv.mjs, bukan mata.
+     * Posisi sama dgn pola amgl.js: R[0]=c0x; R[1]=c1x; R[3]=tx. */
+    var x0 = a * ew * iw,           y0 = -b * ew * ih;     /* koef u  */
+    var x1 = -c * eh * iw,          y1 = d * eh * ih;      /* koef v  */
+    var x2 = (e - a * ew * h + c * eh * h) * iw;            /* konst   */
+    var y2 = 1 + (b * ew * h - d * eh * h - f) * ih;
+    return new Float32Array([
+      x0, x1, x2,     /* kolom 0 = (koef u, koef v, konst) -> keluaran x */
+      y0, y1, y2,     /* kolom 1 -> keluaran y */
+      0, 0, 1         /* kolom 2 -> homogen, cuma .xy yang dipakai */]);
+  }
+
+  function applyEffect(el, input, ext, timeSec, durSec, tt, compTex, n, m2c) {
     var id = attr(el, 'id');
     var meta = engine.effect(id);
     if (!meta) { stats.missing++; trc(id, 'hilang', false, null); return {}; }
@@ -592,6 +624,7 @@
           acLayerCenterNorm: [0.5, 0.5],
           acLayerSizeNorm: [ext.w / scene.w, ext.h / scene.h],
           acProjectSize: [scene.w, scene.h],
+          acPassToComp: m2c || IDENT_M3,
           acPreviewSize: [engine.canvas.width || scene.w, engine.canvas.height || scene.h]
         }
       });
@@ -690,10 +723,12 @@
       var timeSec = (timeMs - a) / 1000;
       var durSec = (b - a) / 1000;
       var cur = tex, n = 0, alpha = 1, usedComp = false;
+      /* matriks uv pass -> uv komposisi, dipakai shader yg nyedot `comp` */
+      var m2c = pass2comp(q.m, ext, W, H);
       var isCC = (typeof ccNoFill === 'function') && ccNoFill(l);
       traceOn = isCC;
       for (var k = 0; k < effs.length; k++) {
-        var r = applyEffect(effs[k], cur, ext, timeSec, durSec, tt, read.tex, n);
+        var r = applyEffect(effs[k], cur, ext, timeSec, durSec, tt, read.tex, n, m2c);
         if (r.tex) { cur = r.tex; n = r.n; if (r.usesComp) usedComp = true; }
       }
 

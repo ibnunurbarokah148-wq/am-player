@@ -177,6 +177,54 @@
     return out;
   }
 
+  /* ----------------------------------------------------- remap sampling comp
+   * Pass efek kita SEUKURAN extent layer (bbox + PAD), sedangkan texture
+   * `comp` (backdrop = FBO scene) selalu seukuran kanvas penuh. Shader AM
+   * menulis `texture2DCv(comp, <uv>)` dengan asumsi uv itu uv KANVAS (mereka
+   * jalanin pass fullscreen — lihat js/amgl.js PRELUDE: acScreenNorm =
+   * gl_FragCoord/acScreenSize dgn acScreenSize = W,H).
+   *
+   * Akibatnya di kita: `ini coloring` (pas-kanvas tapi kena pad 144px) baca
+   * komposisi pada skala 79%, `ya ngentot` (cover 1.78x) pada 56%, `makasih`
+   * (cover 50x) pada 2% -> backdrop salah ruang = kotak putih di layer CC.
+   *
+   * Solusi: bungkus argumen `comp` dgn acCompUv(), matriks acPassToComp
+   * (diisi render() lewat pass2comp) yang memetakan uv pass -> uv kanvas,
+   * memakai ALGEBRA YANG SAMA dengan composite():
+   *     L   = ((u-0.5)*ext.w, (0.5-v)*ext.h)        // lokal layer, y-down
+   *     sp  = q.m * L                                // px kanvas, y-down
+   *     cuv = (sp.x/W, 1 - sp.y/H)                   // uv tekstur kanvas
+   * inputImg TIDAK disentuh (ruangnya emang ruang pass). */
+  var COMP_CALL = /texture2D(?:Cv)?\s*\(\s*comp\s*,/g;
+  var PREC_FLOAT = /precision\s+\w+\s+float\s*;/;
+  function remapCompSampling(src, path) {
+    COMP_CALL.lastIndex = 0;
+    if (!COMP_CALL.test(src)) return src;
+    COMP_CALL.lastIndex = 0;
+    var out = '', prev = 0, m, n = 0;
+    while ((m = COMP_CALL.exec(src)) !== null) {
+      var head = m[0], j = m.index + head.length, depth = 0, k = j;
+      for (; k < src.length; k++) {
+        var ch = src.charAt(k);
+        if (ch === '(') depth++;
+        else if (ch === ')') { if (depth === 0) break; depth--; }
+      }
+      if (k >= src.length) break;               /* kurung tak seimbang -> lepas */
+      out += src.slice(prev, m.index) + head + 'acCompUv(' + src.slice(j, k) + '))';
+      prev = k + 1;                             /* telan ')' penutup asli */
+      n++;
+    }
+    if (!n) return src;
+    out += src.slice(prev);
+    var decl = 'uniform mat3 acPassToComp;\n' +
+               'vec2 acCompUv(vec2 uv){ return (vec3(uv, 1.0) * acPassToComp).xy; }\n';
+    out = PREC_FLOAT.test(out)
+      ? out.replace(PREC_FLOAT, function (mm) { return mm + '\n' + decl; })
+      : 'precision highp float;\n' + decl + out;
+    console.log('[glx] remap comp->kanvas: ' + n + ' site di ' + (path || '?'));
+    return out;
+  }
+
   /* ------------------------------------------------------------ glsl loading */
   Engine.prototype.getGlsl = function (path) {
     var self = this;
@@ -189,6 +237,7 @@
         t = t.replace(/precision highp float;/, 'precision mediump float;')
              .replace(/precision highp int;/, 'precision mediump int;');
       t = patchShaderSource(t, path);     /* WAJIB sebelum compile: ESSL 1.0 */
+      t = remapCompSampling(t, path);     /* uv comp -> uv kanvas */
       self.glslSrc.set(path, t);
       return t;
     });
@@ -333,6 +382,7 @@
       acScaleVelocity: 0,
       acScreenToLayer: IDENT3,
       acLayerToScreen: IDENT3,
+      acPassToComp: IDENT3,
       acLTS: IDENT4,
       acShowGuides: false,
       acPass: pass || 0
