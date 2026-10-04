@@ -145,6 +145,38 @@
     return out;
   };
 
+  /* ------------------------------------------------- shim ESSL 1.0 (loop)
+   * Kita minta konteks WebGL1 ('webgl'), jadi semua shader dikompilasi sebagai
+   * GLSL ES 1.00 — di situ "for" WAJIB berbentuk for (int i = <konstan>;
+   * i < <ekspresi konstan>; ...). Shader asli AM sering memakai batas yang
+   * berasal dari PARAMETER FUNGSI, contoh nyata di paket ini:
+   *     clouds.0.fragment   : float fbm(vec2 st, ..., int octaveCount, ...)
+   *                            for (int i = 0; i < octaveCount; i++)
+   *     ridges.0.fragment   : float ridgedMF(vec2 p, in int OCTAVES, ...)
+   *     dots2.0.fragment    : for (int k = 0; k < densitySteps; k++)
+   * 40 file / 46 loop begitu -> driver ketat (Mali/Adreno/ANGLE) menolak
+   * kompilasi dan efeknya lenyap diam-diam (tercatat di stats.broken).
+   *
+   * Solusi yang sama persis dipakai motionary (github.com/ryuhandev/motionary,
+   * amgl.js patchShaderSource): batas loop diganti angka aman lalu kondisi
+   * aslinya dipindah ke `break` di dalam badan loop — semantik identik selama
+   * 9999 >= batas asli (semua jumlah iterasi efek AM jauh di bawah itu). */
+  var LOOP_BOUND_MAX = 9999;
+  function patchShaderSource(src, path) {
+    var n = 0;
+    var out = src.replace(
+      /for\s*\(\s*int\s+(\w+)\s*=\s*(-?\d+)\s*;\s*\1\s*(<=|<)\s*([^;]+?)\s*;\s*\1\s*(?:\+\+|\+=\s*1)\s*\)\s*\{/g,
+      function (m, iv, init, op, bound) {
+        if (/^\s*\d+\s*$/.test(bound)) return m;      /* sudah konstan -> biarkan */
+        n++;
+        var test = op === '<=' ? '>' : '>=';
+        return 'for (int ' + iv + ' = ' + init + '; ' + iv + ' < ' + LOOP_BOUND_MAX +
+               '; ' + iv + '++) { if (' + iv + ' ' + test + ' (' + bound + ')) break;';
+      });
+    if (n) console.log('[glx] shim loop ESSL1: ' + n + ' loop di ' + (path || '?'));
+    return out;
+  }
+
   /* ------------------------------------------------------------ glsl loading */
   Engine.prototype.getGlsl = function (path) {
     var self = this;
@@ -156,6 +188,7 @@
       if (self.precision !== 'highp')
         t = t.replace(/precision highp float;/, 'precision mediump float;')
              .replace(/precision highp int;/, 'precision mediump int;');
+      t = patchShaderSource(t, path);     /* WAJIB sebelum compile: ESSL 1.0 */
       self.glslSrc.set(path, t);
       return t;
     });
