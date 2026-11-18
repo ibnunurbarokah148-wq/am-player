@@ -1,0 +1,1663 @@
+/* ============================================================================
+   ALIGHT MOTION PC STUDIO — STITCH "STUDIO KINETIC DARK" (SIMPLIFIED & CLEAN)
+   ============================================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  --am-canvas-deep: #0B0D13;
+  --am-canvas-base: #10121D;
+  --am-panel-base: #151923;
+  --am-panel-surface: #1A1D2D;
+  --am-panel-card: #18202E;
+  --am-panel-elevated: #202437;
+  --am-panel-hover: #222C3F;
+  --am-graph-bg: #252B43;
+  --am-border-default: #2B3242;
+  --am-border-subtle: #252A3C;
+  --am-border-interactive: #3D465E;
+  --am-accent-emerald: #10E599;
+  --am-accent-mint: #00D7A7;
+  --am-cyan-neon: #00F0FF;
+  --am-amber-kf: #FFB800;
+  --am-pink-kf: #FF6DA9;
+  --am-danger: #FF667C;
+  --am-text-primary: #F8FAFC;
+  --am-text-secondary: #94A3B8;
+  --am-text-muted: #64748B;
+  --am-pc-left-w: 320px;
+  --am-pc-right-w: 368px;
+  --am-pc-timeline-h: 280px;
+}
+
+@media (min-width: 900px) {
+  body.am-pc-studio-active #experimentalNotice {
+    display: none !important;
+  }
+
+  body.am-pc-studio-active #editor.editor:not(.hidden) {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100vw !important;
+    height: 100vh !important;
+    max-height: 100vh !important;
+    overflow: hidden !important;
+    background: var(--am-canvas-deep) !important;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif !important;
+    color: var(--am-text-primary) !important;
+  }
+
+  /* Hide redundant legacy top header when our unified clean Studio Header is active */
+  body.am-pc-studio-active #editor .editorTop {
+    display: none !important;
+  }
+
+  /* Unified Clean Studio Top Header (44px) — Stitch Kinetic Dark */
+  #amDesktopMenuBar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 44px;
+    min-height: 44px;
+    padding: 0 14px;
+    background: var(--am-panel-base);
+    border-bottom: 1px solid var(--am-border-default);
+    font-size: 12px;
+    color: var(--am-text-primary);
+    user-select: none;
+    z-index: 60;
+    gap: 10px;
+  }
+
+  .am-pc-menu-left,
+  .am-pc-menu-center,
+  .am-pc-menu-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .am-pc-brand-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    padding: 4px 10px;
+    border-radius: 6px;
+    background: rgba(16, 229, 153, 0.12);
+    border: 1px solid rgba(16, 229, 153, 0.35);
+    color: var(--am-accent-emerald);
+    font-weight: 700;
+    letter-spacing: 0.3px;
+    font-size: 11.5px;
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+
+  .am-pc-brand-pill:hover {
+    background: rgba(16, 229, 153, 0.2);
+  }
+
+  .am-pc-project-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 11px;
+    border-radius: 6px;
+    background: var(--am-panel-surface);
+    border: 1px solid var(--am-border-default);
+    color: var(--am-text-primary);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .am-pc-project-pill:hover {
+    border-color: var(--am-border-interactive);
+  }
+
+  .am-pc-project-pill small {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--am-accent-emerald);
+    background: rgba(16, 229, 153, 0.1);
+    padding: 1px 6px;
+    border-radius: 4px;
+  }
+
+  .am-pc-menu-btn {
+    background: var(--am-panel-surface);
+    border: 1px solid var(--am-border-default);
+    color: #E2E8F0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 500;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    transition: all 0.14s ease;
+    white-space: nowrap;
+  }
+
+  .am-pc-menu-btn:hover {
+    background: var(--am-panel-hover);
+    border-color: var(--am-border-interactive);
+    color: #FFFFFF;
+  }
+
+  .am-pc-menu-btn.am-pc-menu-btn-accent {
+    background: rgba(0, 240, 255, 0.1);
+    border-color: rgba(0, 240, 255, 0.35);
+    color: var(--am-cyan-neon);
+    font-weight: 600;
+  }
+
+  .am-pc-menu-btn.am-pc-menu-btn-accent:hover {
+    background: rgba(0, 240, 255, 0.18);
+    color: #FFFFFF;
+  }
+
+  .am-pc-menu-btn.am-pc-menu-btn-export {
+    background: var(--am-accent-emerald);
+    border-color: var(--am-accent-emerald);
+    color: #08120E;
+    font-weight: 700;
+  }
+
+  .am-pc-menu-btn.am-pc-menu-btn-export:hover {
+    background: #28F5AD;
+    box-shadow: 0 0 14px rgba(16, 229, 153, 0.35);
+  }
+
+  /* 4-Panel Grid inside #editor .editorMain */
+  body.am-pc-studio-active #editor .editorMain {
+    display: grid !important;
+    grid-template-columns: var(--am-pc-left-w) 4px minmax(340px, 1fr) 4px var(--am-pc-right-w) !important;
+    grid-template-rows: minmax(220px, 1fr) 5px var(--am-pc-timeline-h) !important;
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: calc(100vh - 44px) !important;
+    min-height: 0 !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  /* Left Dock (Col 1, Row 1) */
+  body.am-pc-studio-active #editor .editorMain > #amDesktopLeftDock {
+    grid-column: 1 / 2 !important;
+    grid-row: 1 / 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--am-panel-base);
+    border-right: 1px solid var(--am-border-default);
+    min-width: 250px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    z-index: 25;
+  }
+
+  /* Left Splitter (Col 2, Row 1) */
+  body.am-pc-studio-active #editor .editorMain > #amDesktopLeftSplitter {
+    grid-column: 2 / 3 !important;
+    grid-row: 1 / 2 !important;
+    cursor: col-resize;
+    background: var(--am-canvas-deep);
+    transition: background 0.15s ease;
+    z-index: 30;
+  }
+
+  #amDesktopLeftSplitter:hover,
+  #amDesktopRightSplitter:hover,
+  body.am-pc-studio-active #desktopHorizontalSplitter:hover {
+    background: var(--am-accent-emerald) !important;
+  }
+
+  /* Center Viewport Stage (Col 3, Row 1) */
+  body.am-pc-studio-active #editor .editorMain > .previewArea {
+    grid-column: 3 / 4 !important;
+    grid-row: 1 / 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-width: 0 !important;
+    min-height: 0 !important;
+    background: var(--am-canvas-deep) !important;
+    position: relative !important;
+    overflow: hidden !important;
+  }
+
+  body.am-pc-studio-active #editor #viewport {
+    flex: 1 1 auto !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+  }
+
+  /* Right Splitter (Col 4, Row 1) */
+  body.am-pc-studio-active #editor .editorMain > #amDesktopRightSplitter {
+    grid-column: 4 / 5 !important;
+    grid-row: 1 / 2 !important;
+    cursor: col-resize;
+    background: var(--am-canvas-deep);
+    transition: background 0.15s ease;
+    z-index: 30;
+  }
+
+  /* Right Dock (Col 5, Row 1) */
+  body.am-pc-studio-active #editor .editorMain > #amDesktopRightDock {
+    grid-column: 5 / 6 !important;
+    grid-row: 1 / 2 !important;
+    display: flex !important;
+    flex-direction: column !important;
+    background: var(--am-panel-base);
+    border-left: 1px solid var(--am-border-default);
+    min-width: 290px;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
+    z-index: 25;
+  }
+
+  /* Horizontal Splitter between Top Row and Bottom Timeline (Col 1..6, Row 2) */
+  body.am-pc-studio-active #editor .editorMain > #desktopHorizontalSplitter {
+    grid-column: 1 / 6 !important;
+    grid-row: 2 / 3 !important;
+    display: flex !important;
+    width: 100% !important;
+    height: 5px !important;
+    cursor: row-resize !important;
+    background: var(--am-canvas-deep) !important;
+    border-top: 1px solid var(--am-border-default) !important;
+    border-bottom: 1px solid var(--am-border-default) !important;
+    border-left: none !important;
+    border-right: none !important;
+    z-index: 35 !important;
+  }
+
+  /* Bottom Full-Width Multi-Track Timeline (Col 1..6, Row 3) */
+  body.am-pc-studio-active #editor .editorMain > .timelineArea {
+    grid-column: 1 / 6 !important;
+    grid-row: 3 / 4 !important;
+    display: grid !important;
+    grid-template-rows: 38px minmax(0, 1fr) 0px !important;
+    width: 100% !important;
+    height: 100% !important;
+    min-height: 0 !important;
+    max-height: none !important;
+    background: var(--am-panel-base) !important;
+    overflow: hidden !important;
+    position: relative !important;
+  }
+
+  body.am-pc-studio-active #editor .timelineArea > .transport {
+    height: 38px !important;
+    min-height: 38px !important;
+    background: var(--am-panel-surface) !important;
+    border-bottom: 1px solid var(--am-border-default) !important;
+  }
+
+  /* Permanently Dock #drawer inside #amDesktopRightDockBody */
+  body.am-pc-studio-active #amDesktopRightDockBody {
+    flex: 1 1 auto;
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+    position: relative;
+  }
+
+  body.am-pc-studio-active #drawer.drawer {
+    position: relative !important;
+    inset: auto !important;
+    left: auto !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: auto !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    height: 100% !important;
+    max-height: 100% !important;
+    flex: 1 1 auto !important;
+    transform: none !important;
+    border-radius: 0 !important;
+    border: none !important;
+    box-shadow: none !important;
+    background: var(--am-panel-base) !important;
+    overflow-y: auto !important;
+    display: block !important;
+    padding: 8px 10px 24px 10px !important;
+  }
+
+  body.am-pc-studio-active #drawer.drawer.hidden {
+    display: none !important;
+  }
+}
+
+/* Left Dock 3-Tab Switcher (Clean Stitch Style) */
+.am-pc-dock-tabs {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  padding: 6px 8px;
+  background: var(--am-canvas-base);
+  border-bottom: 1px solid var(--am-border-default);
+  flex-shrink: 0;
+}
+
+.am-pc-dock-tab {
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--am-text-secondary);
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 6px 6px;
+  border-radius: 6px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.14s ease;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.am-pc-dock-tab:hover {
+  color: var(--am-text-primary);
+  background: rgba(255, 255, 255, 0.04);
+}
+
+.am-pc-dock-tab.active {
+  background: var(--am-panel-surface);
+  border-color: var(--am-border-interactive);
+  color: var(--am-accent-emerald);
+  box-shadow: inset 0 -2px 0 var(--am-accent-emerald);
+}
+
+.am-pc-dock-pane {
+  display: none;
+  flex-direction: column;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px;
+  gap: 8px;
+}
+
+.am-pc-dock-pane.active {
+  display: flex;
+}
+
+/* Search & Category Pills */
+.am-pc-search-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.am-pc-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--am-canvas-base);
+  border: 1px solid var(--am-border-default);
+  color: var(--am-text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color 0.14s ease;
+}
+
+.am-pc-search-input:focus {
+  border-color: var(--am-accent-emerald);
+}
+
+.am-pc-cat-strip {
+  display: flex;
+  overflow-x: auto;
+  gap: 4px;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  flex-shrink: 0;
+}
+
+.am-pc-cat-strip::-webkit-scrollbar {
+  display: none;
+}
+
+.am-pc-cat-pill {
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-subtle);
+  color: var(--am-text-secondary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.14s ease;
+}
+
+.am-pc-cat-pill:hover {
+  color: var(--am-text-primary);
+  border-color: var(--am-border-interactive);
+}
+
+.am-pc-cat-pill.active {
+  background: rgba(16, 229, 153, 0.14);
+  border-color: rgba(16, 229, 153, 0.45);
+  color: var(--am-accent-emerald);
+}
+
+/* Real APK Thumbnail Effects Grid in Left Dock */
+.am-pc-fx-grid {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  grid-auto-rows: max-content !important;
+  gap: 8px !important;
+  overflow-y: auto !important;
+  flex: 1 1 auto !important;
+  padding-right: 2px !important;
+  align-content: start !important;
+}
+
+.am-pc-fx-card {
+  display: flex !important;
+  flex-direction: column !important;
+  min-height: 126px !important;
+  height: auto !important;
+  border-radius: 8px !important;
+  background: var(--am-panel-card) !important;
+  border: 1px solid var(--am-border-default) !important;
+  overflow: hidden !important;
+  cursor: pointer !important;
+  transition: transform 0.12s ease, border-color 0.12s ease, box-shadow 0.12s ease !important;
+  text-align: left !important;
+  padding: 0 !important;
+  position: relative !important;
+  user-select: none;
+}
+
+.am-pc-fx-card:hover {
+  border-color: var(--am-accent-emerald) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.35);
+}
+
+.am-pc-fx-thumb-wrap {
+  width: 100% !important;
+  height: 76px !important;
+  min-height: 76px !important;
+  flex-shrink: 0 !important;
+  background: #0D1017;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.am-pc-fx-thumb-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.am-pc-fx-card:hover .am-pc-fx-thumb-img {
+  transform: scale(1.05);
+}
+
+.am-pc-fx-card-badge {
+  position: absolute;
+  top: 5px;
+  right: 5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: rgba(11, 13, 19, 0.85);
+  border: 1px solid rgba(16, 229, 153, 0.45);
+  color: var(--am-accent-emerald);
+  font-size: 9px;
+  font-weight: 700;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.am-pc-fx-card-body {
+  padding: 7px 8px !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 2px !important;
+  flex-shrink: 0 !important;
+}
+
+.am-pc-fx-card-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--am-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.am-pc-fx-card-sub {
+  font-size: 10px;
+  color: var(--am-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+/* Override Native #drawer .effectLibraryCard to show Real APK Thumbnails too! */
+.effectLibraryCard {
+  position: relative !important;
+  overflow: hidden !important;
+  background: var(--am-panel-card) !important;
+  border: 1px solid var(--am-border-default) !important;
+  border-radius: 8px !important;
+  padding: 8px !important;
+  transition: border-color 0.14s ease !important;
+}
+
+.effectLibraryCard:hover {
+  border-color: var(--am-accent-emerald) !important;
+}
+
+.am-native-lib-thumb {
+  width: 100%;
+  height: 68px;
+  object-fit: cover;
+  border-radius: 6px;
+  background: #0B0D13;
+  margin-bottom: 6px;
+  display: block;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+/* Fullscreen Alight Motion Native Effect Browser & Preset Picker Modal */
+#amPcEffectModalShade {
+  position: fixed;
+  inset: 0;
+  background: rgba(7, 9, 14, 0.82);
+  backdrop-filter: blur(8px);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+#amPcEffectModalShade.hidden {
+  display: none !important;
+}
+
+.am-pc-fx-modal {
+  width: min(980px, 94vw);
+  height: min(680px, 88vh);
+  background: var(--am-panel-base);
+  border: 1px solid var(--am-border-default);
+  border-radius: 12px;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.65);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.am-pc-fx-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  background: var(--am-panel-surface);
+  border-bottom: 1px solid var(--am-border-default);
+  gap: 12px;
+}
+
+.am-pc-fx-modal-body {
+  display: grid;
+  grid-template-columns: 1fr 310px;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.am-pc-fx-modal-catalog {
+  padding: 14px;
+  overflow-y: auto;
+  display: grid !important;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  grid-auto-rows: max-content !important;
+  gap: 10px !important;
+  align-content: start !important;
+}
+
+.am-pc-fx-modal-detail {
+  background: var(--am-canvas-base);
+  border-left: 1px solid var(--am-border-default);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow-y: auto;
+}
+
+.am-pc-fx-detail-preview {
+  width: 100%;
+  height: 150px;
+  border-radius: 8px;
+  object-fit: cover;
+  background: #0B0D13;
+  border: 1px solid var(--am-border-default);
+}
+
+.am-pc-preset-pill-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.am-pc-preset-choice-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 7px;
+  background: var(--am-panel-card);
+  border: 1px solid var(--am-border-default);
+  color: var(--am-text-primary);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.am-pc-preset-choice-btn:hover,
+.am-pc-preset-choice-btn.primary {
+  background: rgba(16, 229, 153, 0.14);
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+}
+
+/* ============================================================================
+   REVERSE-ENGINEERED NATIVE ALIGHT MOTION EFFECT SETTINGS UI (IN RIGHT DOCK)
+   ============================================================================ */
+
+/* Effect Header Thumbnail & Official Preset Strip inside .effectCard */
+body.am-pc-studio-active .effectCardTitle.am-has-thumb {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+}
+
+body.am-pc-studio-active .am-native-card-title-text {
+  min-width: 0 !important;
+  flex: 1 1 auto !important;
+  overflow: hidden !important;
+}
+
+.am-native-card-thumb {
+  width: 30px !important;
+  height: 30px !important;
+  border-radius: 6px !important;
+  object-fit: cover !important;
+  background: #0B0D13 !important;
+  border: 1px solid var(--am-border-default) !important;
+  flex-shrink: 0 !important;
+}
+
+.am-native-preset-bar {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  padding: 7px 8px;
+  margin-bottom: 8px;
+  border-radius: 7px;
+  background: var(--am-canvas-base);
+  border: 1px solid var(--am-border-subtle);
+}
+
+.am-native-preset-bar-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--am-text-secondary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.am-native-preset-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.am-native-preset-chip {
+  padding: 3px 8px;
+  border-radius: 5px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-default);
+  color: #E2E8F0;
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.am-native-preset-chip:hover,
+.am-native-preset-chip.active {
+  background: rgba(16, 229, 153, 0.16);
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+}
+
+/* Native AM Section Header (<section>) & Tip (<tip>) */
+.am-native-section-divider {
+  margin: 10px 0 4px 0;
+  padding: 4px 8px;
+  border-left: 2px solid var(--am-accent-emerald);
+  background: rgba(26, 29, 45, 0.65);
+  color: var(--am-accent-emerald);
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  border-radius: 0 4px 4px 0;
+}
+
+/* Unit Badge inside numeric readout (°, %, px, Hz, s, RPM) */
+.am-native-num-wrap {
+  display: flex !important;
+  align-items: center !important;
+  gap: 3px !important;
+  min-width: 0 !important;
+}
+
+body.am-pc-studio-active .effectParamRow {
+  grid-template-columns: minmax(65px, 0.68fr) minmax(72px, 1fr) minmax(60px, auto) 28px !important;
+  align-items: center !important;
+}
+
+.am-native-unit-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--am-accent-emerald);
+  padding: 1px 4px;
+  border-radius: 3px;
+  background: rgba(16, 229, 153, 0.1);
+  pointer-events: none;
+  flex-shrink: 0;
+}
+
+/* Custom Dark Scrollbars for Stitch Studio Kinetic Dark */
+body.am-pc-studio-active ::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+body.am-pc-studio-active ::-webkit-scrollbar-track {
+  background: var(--am-canvas-deep);
+}
+
+body.am-pc-studio-active ::-webkit-scrollbar-thumb {
+  background: #2B3242;
+  border-radius: 4px;
+}
+
+body.am-pc-studio-active ::-webkit-scrollbar-thumb:hover {
+  background: var(--am-accent-emerald);
+}
+
+/* Stitch Kinetic Dark styling for Integrated Scrub Rulers (<spinner>) */
+body.am-pc-studio-active .effectCard {
+  background: var(--am-panel-card) !important;
+  border: 1px solid var(--am-border-default) !important;
+  border-radius: 8px !important;
+  margin-bottom: 8px !important;
+}
+
+body.am-pc-studio-active .effectCard.activeEffectCard {
+  border-color: rgba(16, 229, 153, 0.5) !important;
+}
+
+body.am-pc-studio-active .effectParamRulerShell {
+  background: var(--am-canvas-deep) !important;
+  border: 1px solid var(--am-border-default) !important;
+  border-radius: 6px !important;
+}
+
+body.am-pc-studio-active .effectParamRulerPlayhead {
+  background: var(--am-accent-emerald) !important;
+  box-shadow: 0 0 6px var(--am-accent-emerald) !important;
+}
+
+body.am-pc-studio-active .effectParamNumber {
+  font-family: 'JetBrains Mono', monospace !important;
+  font-variant-numeric: tabular-nums !important;
+  background: var(--am-canvas-base) !important;
+  border: 1px solid var(--am-border-default) !important;
+  color: var(--am-text-primary) !important;
+  border-radius: 5px !important;
+}
+
+body.am-pc-studio-active .effectParamKey.on {
+  color: var(--am-amber-kf) !important;
+  border-color: rgba(255, 184, 0, 0.5) !important;
+  background: rgba(255, 184, 0, 0.14) !important;
+}
+
+/* Native AM Color Swatch Row (<color>) */
+.am-native-color-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 8px;
+  margin: 4px 0;
+  border-radius: 6px;
+  background: var(--am-canvas-base);
+  border: 1px solid var(--am-border-default);
+}
+
+.am-native-color-bar label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--am-text-secondary);
+}
+
+.am-native-color-picker-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.am-native-color-input {
+  width: 28px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid var(--am-border-interactive);
+  border-radius: 4px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.am-native-color-hex {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  color: var(--am-text-primary);
+}
+
+/* Right Dock Inspector Header & Tabs */
+.am-pc-inspector-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+  background: var(--am-canvas-base);
+  border-bottom: 1px solid var(--am-border-default);
+  flex-shrink: 0;
+}
+
+.am-pc-inspector-title-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: var(--am-text-primary);
+}
+
+.am-pc-inspector-tabs {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+}
+
+.am-pc-insp-btn {
+  padding: 5px 4px;
+  border-radius: 5px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-subtle);
+  color: var(--am-text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.12s ease;
+}
+
+.am-pc-insp-btn:hover {
+  color: var(--am-text-primary);
+  border-color: var(--am-border-interactive);
+}
+
+.am-pc-insp-btn.active {
+  background: rgba(16, 229, 153, 0.14);
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+}
+
+/* Layer Bin & Cards */
+.am-pc-card {
+  background: var(--am-panel-card);
+  border: 1px solid var(--am-border-default);
+  border-radius: 8px;
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.am-pc-card h4 {
+  margin: 0;
+  font-size: 12px;
+  color: var(--am-text-primary);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.am-pc-card p {
+  margin: 0;
+  font-size: 11px;
+  color: var(--am-text-secondary);
+  line-height: 1.4;
+}
+
+.am-pc-btn-block {
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 6px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-default);
+  color: var(--am-text-primary);
+  font-size: 11.5px;
+  font-weight: 600;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  transition: all 0.14s ease;
+}
+
+.am-pc-btn-block:hover {
+  background: var(--am-panel-hover);
+  border-color: var(--am-border-interactive);
+}
+
+.am-pc-btn-block.primary {
+  background: rgba(16, 229, 153, 0.16);
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+}
+
+.am-pc-layer-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  overflow-y: auto;
+  flex: 1 1 auto;
+}
+
+.am-pc-layer-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background: var(--am-panel-card);
+  border: 1px solid var(--am-border-subtle);
+  cursor: pointer;
+  font-size: 11.5px;
+  transition: all 0.12s ease;
+}
+
+.am-pc-layer-row:hover {
+  border-color: var(--am-border-interactive);
+}
+
+.am-pc-layer-row.selected {
+  background: rgba(16, 229, 153, 0.12);
+  border-color: var(--am-accent-emerald);
+}
+
+.am-pc-layer-row-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+}
+
+.am-pc-layer-type-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 9.5px;
+  padding: 1px 5px;
+  border-radius: 4px;
+  background: var(--am-panel-surface);
+  color: var(--am-accent-emerald);
+  text-transform: uppercase;
+}
+
+.am-pc-element-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.am-pc-element-btn {
+  padding: 7px 8px;
+  border-radius: 6px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-default);
+  color: var(--am-text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.12s ease;
+}
+
+.am-pc-element-btn:hover {
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+}
+
+/* ============================================================================
+   NATIVE ALIGHT MOTION MOVE & TRANSFORM (GERAK & PERUBAHAN BENTUK) STUDIO UI
+   ============================================================================ */
+
+.am-tf-studio {
+  display: grid;
+  grid-template-columns: 46px minmax(0, 1fr) 52px;
+  gap: 10px;
+  height: 100%;
+  box-sizing: border-box;
+  align-items: stretch;
+}
+
+/* Left Keyframe Rail */
+.am-tf-key-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: var(--am-panel-base);
+  border: 1px solid var(--am-border-subtle);
+  border-radius: 8px;
+  padding: 8px 4px;
+}
+
+.am-tf-key-btn {
+  width: 36px;
+  height: 36px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-default);
+  border-radius: 6px;
+  color: var(--am-text-secondary);
+  cursor: pointer;
+  transition: all 0.14s ease;
+  padding: 0;
+}
+
+.am-tf-key-btn svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+}
+
+.am-tf-diamond-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.am-tf-diamond-btn.am-tf-kf-active {
+  color: var(--am-amber-kf) !important;
+  border-color: rgba(255, 184, 0, 0.5) !important;
+  background: rgba(255, 184, 0, 0.14) !important;
+  box-shadow: 0 0 10px rgba(255, 184, 0, 0.3) !important;
+}
+
+.am-tf-key-btn:hover:not(:disabled) {
+  border-color: var(--am-border-interactive);
+  color: var(--am-text-primary);
+  background: var(--am-panel-hover);
+}
+
+.am-tf-key-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.am-tf-key-btn.gold {
+  color: var(--am-amber-kf);
+  border-color: rgba(255, 184, 0, 0.4);
+  background: rgba(255, 184, 0, 0.12);
+  box-shadow: 0 0 10px rgba(255, 184, 0, 0.25);
+}
+
+.am-tf-key-btn.active {
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+}
+
+.am-tf-key-btn.curve {
+  margin-top: auto;
+  border-color: rgba(0, 240, 255, 0.35);
+  color: var(--am-cyan-neon);
+}
+
+.am-tf-key-btn.curve:hover {
+  background: rgba(0, 240, 255, 0.15);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.3);
+}
+
+.am-tf-key-rail-divider {
+  width: 24px;
+  height: 1px;
+  background: var(--am-border-subtle);
+  margin: 2px 0;
+}
+
+/* Center Workspace */
+.am-tf-workspace {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: var(--am-panel-base);
+  border: 1px solid var(--am-border-subtle);
+  border-radius: 8px;
+  padding: 12px;
+  overflow-y: auto;
+}
+
+.am-tf-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid var(--am-border-subtle);
+  padding-bottom: 8px;
+}
+
+.am-tf-card-title {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--am-text-secondary);
+}
+
+.am-tf-card-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--am-accent-emerald);
+  background: rgba(16, 229, 153, 0.12);
+  padding: 2px 7px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 229, 153, 0.3);
+}
+
+.am-tf-ratio-toggle {
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-default);
+  color: var(--am-text-secondary);
+  cursor: pointer;
+  transition: all 0.14s ease;
+}
+
+.am-tf-ratio-toggle.locked {
+  background: rgba(16, 229, 153, 0.12);
+  border-color: rgba(16, 229, 153, 0.4);
+  color: var(--am-accent-emerald);
+}
+
+/* Numeric Readout Grid */
+.am-tf-readout-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.am-tf-readout-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.am-tf-readout-item label {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--am-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.am-tf-num-box {
+  display: flex;
+  align-items: center;
+  background: var(--am-canvas-base);
+  border: 1px solid var(--am-border-default);
+  border-radius: 6px;
+  padding: 0 8px;
+  height: 32px;
+  transition: border-color 0.14s ease;
+}
+
+.am-tf-num-box:focus-within {
+  border-color: var(--am-accent-emerald);
+}
+
+.am-tf-num-box input {
+  flex: 1 1 auto;
+  width: 100%;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--am-text-primary);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.am-tf-unit {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  color: var(--am-text-muted);
+  margin-left: 4px;
+  user-select: none;
+}
+
+/* ControlPad: Interactive Position Drag Surface */
+.am-tf-pad-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.am-tf-pad-box {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: radial-gradient(circle at center, rgba(16, 229, 153, 0.05) 0%, #080A10 100%);
+  border: 1px solid var(--am-border-default);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.am-tf-pad-box:hover {
+  border-color: var(--am-border-interactive);
+}
+
+.am-tf-pad-cross-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.am-tf-pad-cross-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.am-tf-pad-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--am-accent-emerald);
+  box-shadow: 0 0 12px rgba(16, 229, 153, 0.8), inset 0 0 4px #FFFFFF;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  transition: transform 0.06s ease;
+}
+
+/* Position Nudge Pad Cluster */
+.am-tf-pad-nudge-cluster {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.am-tf-nudge-btn {
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-subtle);
+  border-radius: 5px;
+  color: var(--am-text-secondary);
+  font-size: 11px;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.am-tf-nudge-btn:hover {
+  background: var(--am-panel-hover);
+  color: var(--am-text-primary);
+  border-color: var(--am-border-interactive);
+}
+
+.am-tf-pad-hint {
+  text-align: center;
+  font-size: 9.5px;
+  color: var(--am-text-muted);
+  user-select: none;
+}
+
+/* Alight Motion RotateView Dial */
+.am-tf-rotate-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+}
+
+.am-tf-rotate-dial {
+  position: relative;
+  width: 150px;
+  height: 150px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #101522 0%, #0B0E17 100%);
+  border: 2px solid var(--am-border-interactive);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5), inset 0 0 15px rgba(0, 0, 0, 0.8);
+  cursor: grab;
+  user-select: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.am-tf-rotate-dial:active {
+  cursor: grabbing;
+  border-color: var(--am-accent-emerald);
+}
+
+.am-tf-rotate-needle {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.am-tf-rotate-knob {
+  position: absolute;
+  top: 6px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--am-accent-emerald);
+  box-shadow: 0 0 10px rgba(16, 229, 153, 0.8);
+}
+
+.am-tf-rotate-center-badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--am-text-primary);
+  background: var(--am-panel-base);
+  border: 1px solid var(--am-border-default);
+  padding: 4px 10px;
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+/* Alight Motion Scale Vertical Pad */
+.am-tf-scale-pad-wrap {
+  width: 100%;
+  height: 90px;
+  background: #0B0E17;
+  border: 1px solid var(--am-border-default);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: ns-resize;
+  user-select: none;
+  position: relative;
+  overflow: hidden;
+}
+
+.am-tf-scale-pad-wrap:hover {
+  border-color: var(--am-accent-emerald);
+}
+
+.am-tf-scale-pad-track {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.03),
+    rgba(255, 255, 255, 0.03) 1px,
+    transparent 1px,
+    transparent 8px
+  );
+}
+
+.am-tf-scale-pad-handle {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--am-accent-emerald);
+  background: rgba(16, 229, 153, 0.12);
+  border: 1px solid rgba(16, 229, 153, 0.3);
+  padding: 6px 16px;
+  border-radius: 20px;
+  letter-spacing: 0.3px;
+  pointer-events: none;
+}
+
+/* Skew Pad Sliders */
+.am-tf-skew-pad-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.am-tf-skew-rail {
+  position: relative;
+  height: 38px;
+  background: #0B0E17;
+  border: 1px solid var(--am-border-default);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  cursor: ew-resize;
+  user-select: none;
+}
+
+.am-tf-skew-rail span {
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--am-text-secondary);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.am-tf-skew-thumb {
+  position: absolute;
+  top: 4px;
+  bottom: 4px;
+  width: 14px;
+  background: var(--am-accent-emerald);
+  border-radius: 4px;
+  transform: translateX(-50%);
+  box-shadow: 0 0 8px rgba(16, 229, 153, 0.6);
+  pointer-events: none;
+}
+
+/* Pivot Pad */
+.am-tf-pivot-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.am-tf-pivot-box {
+  position: relative;
+  width: 100%;
+  height: 150px;
+  background: radial-gradient(circle at center, rgba(0, 240, 255, 0.06) 0%, #080A10 100%);
+  border: 1px solid var(--am-border-default);
+  border-radius: 8px;
+  overflow: hidden;
+  cursor: crosshair;
+  user-select: none;
+}
+
+.am-tf-pivot-box:hover {
+  border-color: var(--am-cyan-neon);
+}
+
+.am-tf-pivot-cross-h {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 50%;
+  height: 1px;
+  background: rgba(0, 240, 255, 0.2);
+}
+
+.am-tf-pivot-cross-v {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 50%;
+  width: 1px;
+  background: rgba(0, 240, 255, 0.2);
+}
+
+.am-tf-pivot-dot {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--am-cyan-neon);
+  box-shadow: 0 0 12px rgba(0, 240, 255, 0.9), inset 0 0 4px #FFFFFF;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* Quick Presets Strip */
+.am-tf-quick-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.am-tf-preset-pill {
+  padding: 4px 8px;
+  border-radius: 5px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-subtle);
+  color: var(--am-text-secondary);
+  font-size: 10.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.12s ease;
+}
+
+.am-tf-preset-pill:hover {
+  color: var(--am-text-primary);
+  border-color: var(--am-border-interactive);
+  background: var(--am-panel-hover);
+}
+
+.am-tf-preset-pill.primary {
+  background: rgba(16, 229, 153, 0.12);
+  border-color: rgba(16, 229, 153, 0.35);
+  color: var(--am-accent-emerald);
+}
+
+.am-tf-preset-pill.primary:hover {
+  background: rgba(16, 229, 153, 0.22);
+}
+
+/* Right Modes Rail */
+.am-tf-modes-rail {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  background: var(--am-panel-base);
+  border: 1px solid var(--am-border-subtle);
+  border-radius: 8px;
+  padding: 6px 4px;
+}
+
+.am-tf-mode-tab {
+  width: 44px;
+  height: 52px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  background: var(--am-panel-surface);
+  border: 1px solid var(--am-border-subtle);
+  border-radius: 6px;
+  color: var(--am-text-secondary);
+  cursor: pointer;
+  padding: 2px;
+  transition: all 0.14s ease;
+}
+
+.am-tf-mode-tab svg {
+  width: 18px;
+  height: 18px;
+  fill: currentColor;
+  stroke: currentColor;
+}
+
+.am-tf-mode-tab small {
+  font-size: 9px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+.am-tf-mode-tab:hover {
+  border-color: var(--am-border-interactive);
+  color: var(--am-text-primary);
+  background: var(--am-panel-hover);
+}
+
+.am-tf-mode-tab.active {
+  background: rgba(16, 229, 153, 0.14);
+  border-color: var(--am-accent-emerald);
+  color: var(--am-accent-emerald);
+  box-shadow: 0 0 10px rgba(16, 229, 153, 0.2);
+}
+

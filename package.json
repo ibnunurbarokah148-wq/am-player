@@ -1,21 +1,10 @@
 {
-  "name": "am-xml-player",
-  "version": "0.1.0",
-  "description": "Web previewer for Alight Motion scene XML projects",
-  "type": "module",
-  "main": "index.js",
+  "name": "alight-motion-pc-studio",
+  "version": "5.285.0",
+  "description": "Alight Motion PC/Laptop Web Editor Studio (Open-Motion WebGL + REA Native v5.0.273 Effect Parity + Direct Alight Creative Preset Importer)",
+  "main": "server.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "node --watch index.js",
-    "test": "node --test test/*.test.js",
-    "validate:effects": "python tools/validate_effect_bundle.py"
-  },
-  "dependencies": {
-    "express": "^4.19.2",
-    "cors": "^2.8.5",
-    "jszip": "^3.10.1"
-  },
-  "engines": {
-    "node": ">=18"
+    "start": "node server.js",
+    "dev": "node server.js"
   }
 }
